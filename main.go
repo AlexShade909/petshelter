@@ -1,9 +1,9 @@
 package main
 
 import (
-	"PetShelter/cli"
-	"PetShelter/internal"
-	"PetShelter/network"
+	"petshelter/cli"
+	"petshelter/internal"
+	"petshelter/network"
 	"log"
 )
 

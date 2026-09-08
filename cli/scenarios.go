@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"PetShelter/internal"
+	"petshelter/internal"
 )
 
 func ScenarioTakeDog(dogs map[string]internal.Dog) bool {

@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"PetShelter/internal"
+	"petshelter/internal"
 )
 
 func PrintDogInfo(dogs map[string]internal.Dog, nickname string) {
