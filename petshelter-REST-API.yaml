@@ -1,0 +1,442 @@
+openapi: 3.1.0
+info:
+  title: PetShelter API
+  version: 1.0.0
+  description: |
+    HTTP API for a dog shelter. Visitors can browse available dogs; administrators
+    manage dogs, shelters and clinics; adoption is retained as an immutable record.
+servers:
+  - url: https://api.petshelter.example/v1
+tags:
+  - name: Dogs
+  - name: Shelters
+  - name: Clinics
+  - name: Adoptions
+security:
+  - bearerAuth: []
+paths:
+  /dogs:
+    get:
+      tags: [Dogs]
+      summary: List dogs
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/DogStatus' }
+        - name: shelter_id
+          in: query
+          schema: { $ref: '#/components/schemas/Id' }
+        - name: clinic_id
+          in: query
+          schema: { $ref: '#/components/schemas/Id' }
+        - name: q
+          in: query
+          description: Case-insensitive search by nickname.
+          schema: { type: string, minLength: 1, maxLength: 100 }
+      responses:
+        '200':
+          description: Page of dogs
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DogPage' }
+    post:
+      tags: [Dogs]
+      summary: Register a dog in a shelter
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateDogRequest' }
+      responses:
+        '201':
+          description: Dog created
+          headers:
+            Location: { schema: { type: string, format: uri-reference } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Dog' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /dogs/{dog_id}:
+    parameters: [{ $ref: '#/components/parameters/DogId' }]
+    get:
+      tags: [Dogs]
+      summary: Get dog details
+      security: []
+      responses:
+        '200':
+          description: Dog
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Dog' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Dogs]
+      summary: Update dog data or transfer it to another shelter or clinic
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateDogRequest' }
+      responses:
+        '200':
+          description: Updated dog
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Dog' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /dogs/{dog_id}/adoptions:
+    parameters: [{ $ref: '#/components/parameters/DogId' }]
+    post:
+      tags: [Adoptions]
+      summary: Record an adoption
+      description: Only a dog with `status=available` may be adopted.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateAdoptionRequest' }
+      responses:
+        '201':
+          description: Adoption created; the dog status becomes `adopted` atomically.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Adoption' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: The dog is no longer available.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /shelters:
+    get:
+      tags: [Shelters]
+      summary: List shelters
+      security: []
+      responses:
+        '200':
+          description: Shelters
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Shelter' }
+    post:
+      tags: [Shelters]
+      summary: Create a shelter
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FacilityRequest' }
+      responses:
+        '201':
+          description: Shelter created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Shelter' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+  /shelters/{shelter_id}:
+    parameters: [{ $ref: '#/components/parameters/ShelterId' }]
+    get:
+      tags: [Shelters]
+      summary: Get shelter
+      security: []
+      responses:
+        '200':
+          description: Shelter
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Shelter' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Shelters]
+      summary: Update shelter contact details
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FacilityRequest' }
+      responses:
+        '200':
+          description: Updated shelter
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Shelter' }
+  /shelters/{shelter_id}/dogs:
+    get:
+      tags: [Shelters, Dogs]
+      summary: List dogs currently assigned to a shelter
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/ShelterId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/DogStatus' }
+      responses:
+        '200':
+          description: Page of dogs
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DogPage' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /clinics:
+    get:
+      tags: [Clinics]
+      summary: List clinics
+      security: []
+      responses:
+        '200':
+          description: Clinics
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Clinic' }
+    post:
+      tags: [Clinics]
+      summary: Create a clinic
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FacilityRequest' }
+      responses:
+        '201':
+          description: Clinic created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Clinic' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+  /clinics/{clinic_id}:
+    parameters: [{ $ref: '#/components/parameters/ClinicId' }]
+    get:
+      tags: [Clinics]
+      summary: Get clinic
+      security: []
+      responses:
+        '200':
+          description: Clinic
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Clinic' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Clinics]
+      summary: Update clinic contact details
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FacilityRequest' }
+      responses:
+        '200':
+          description: Updated clinic
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Clinic' }
+  /clinics/{clinic_id}/dogs:
+    get:
+      tags: [Clinics, Dogs]
+      summary: List dogs assigned to a clinic
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/ClinicId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Page of dogs
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DogPage' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /adoptions:
+    get:
+      tags: [Adoptions]
+      summary: List adoption records
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - name: dog_id
+          in: query
+          schema: { $ref: '#/components/schemas/Id' }
+      responses:
+        '200':
+          description: Page of adoptions
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdoptionPage' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    DogId: { name: dog_id, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+    ShelterId: { name: shelter_id, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+    ClinicId: { name: clinic_id, in: path, required: true, schema: { $ref: '#/components/schemas/Id' } }
+    Page: { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+    Limit: { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+  responses:
+    Unauthorized:
+      description: Authentication is required.
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    Forbidden:
+      description: The role is not permitted.
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    NotFound:
+      description: Resource not found.
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    Conflict:
+      description: Request conflicts with current resource state.
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    ValidationError:
+      description: Request body or query parameter is invalid.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ValidationError' } } }
+  schemas:
+    Id: { type: string, format: uuid }
+    DogStatus:
+      type: string
+      enum: [available, reserved, adopted, unavailable]
+    Dog:
+      type: object
+      required: [id, nickname, weight_kg, check_in_date, status, shelter, clinic, created_at, updated_at]
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        nickname: { type: string, minLength: 1, maxLength: 100, example: 'Чарли' }
+        date_of_birth: { type: [string, 'null'], format: date, description: Preferred over a stored age. }
+        weight_kg: { type: number, exclusiveMinimum: 0, example: 13.5 }
+        check_in_date: { type: string, format: date }
+        status: { $ref: '#/components/schemas/DogStatus' }
+        shelter: { $ref: '#/components/schemas/FacilityReference' }
+        clinic: { $ref: '#/components/schemas/FacilityReference' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    CreateDogRequest:
+      type: object
+      additionalProperties: false
+      required: [nickname, weight_kg, check_in_date, shelter_id, clinic_id]
+      properties:
+        nickname: { type: string, minLength: 1, maxLength: 100 }
+        date_of_birth: { type: string, format: date }
+        weight_kg: { type: number, exclusiveMinimum: 0, maximum: 200 }
+        check_in_date: { type: string, format: date }
+        shelter_id: { $ref: '#/components/schemas/Id' }
+        clinic_id: { $ref: '#/components/schemas/Id' }
+    UpdateDogRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        nickname: { type: string, minLength: 1, maxLength: 100 }
+        date_of_birth: { type: string, format: date }
+        weight_kg: { type: number, exclusiveMinimum: 0, maximum: 200 }
+        check_in_date: { type: string, format: date }
+        status: { $ref: '#/components/schemas/DogStatus' }
+        shelter_id: { $ref: '#/components/schemas/Id' }
+        clinic_id: { $ref: '#/components/schemas/Id' }
+    FacilityRequest:
+      type: object
+      additionalProperties: false
+      required: [name, address, phone, working_hours]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 150 }
+        address: { type: string, minLength: 1, maxLength: 300 }
+        phone: { type: string, pattern: '^\\+[1-9][0-9 -]{6,29}$', example: '+375 29 511-22-13' }
+        working_hours: { type: string, minLength: 1, maxLength: 100, example: '10:00-22:00' }
+    FacilityReference:
+      type: object
+      required: [id, name]
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        name: { type: string }
+    Shelter:
+      allOf:
+        - $ref: '#/components/schemas/FacilityRequest'
+        - type: object
+          required: [id]
+          properties: { id: { $ref: '#/components/schemas/Id' } }
+    Clinic:
+      allOf:
+        - $ref: '#/components/schemas/FacilityRequest'
+        - type: object
+          required: [id]
+          properties: { id: { $ref: '#/components/schemas/Id' } }
+    CreateAdoptionRequest:
+      type: object
+      additionalProperties: false
+      required: [adopter_name, adopter_phone]
+      properties:
+        adopter_name: { type: string, minLength: 2, maxLength: 150 }
+        adopter_phone: { type: string, pattern: '^\\+[1-9][0-9 -]{6,29}$' }
+        note: { type: string, maxLength: 2000 }
+    Adoption:
+      type: object
+      required: [id, dog_id, adopted_at, adopter_name, adopter_phone]
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        dog_id: { $ref: '#/components/schemas/Id' }
+        adopted_at: { type: string, format: date-time }
+        adopter_name: { type: string }
+        adopter_phone: { type: string }
+        note: { type: string }
+    PageMeta:
+      type: object
+      required: [page, limit, total]
+      properties:
+        page: { type: integer }
+        limit: { type: integer }
+        total: { type: integer }
+    DogPage:
+      type: object
+      required: [items, meta]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Dog' } }
+        meta: { $ref: '#/components/schemas/PageMeta' }
+    AdoptionPage:
+      type: object
+      required: [items, meta]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Adoption' } }
+        meta: { $ref: '#/components/schemas/PageMeta' }
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, example: DOG_NOT_AVAILABLE }
+        message: { type: string, example: Dog is already adopted. }
+        request_id: { type: string, format: uuid }
+    ValidationError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            fields:
+              type: array
+              items:
+                type: object
+                required: [field, message]
+                properties:
+                  field: { type: string, example: weight_kg }
+                  message: { type: string, example: must be greater than zero }
