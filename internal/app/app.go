@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 
-	"petshelter/cli"
 	"petshelter/internal"
 	"petshelter/internal/controller"
 	"petshelter/internal/service"
@@ -62,7 +61,7 @@ func (a *App) run() {
 	}
 	defer conn.Close()
 
-	cli.Init(conn, conn)
+	service.Init(conn, conn)
 
 	Shelters := internal.CreateShelters()
 	Policlinics := internal.CreatePoliclinics()
@@ -71,16 +70,16 @@ func (a *App) run() {
 	flag := true
 
 	for flag {
-		choice := cli.ReadMenuChoice("1. Выбрать собаку\n2. Добавить собаку\n3. Выход\n ", 1, 3)
+		choice := service.ReadMenuChoice("1. Выбрать собаку\n2. Добавить собаку\n3. Выход\n ", 1, 3)
 		switch choice {
 		case 1:
-			cli.Println("Выбрать собаку, я пользователь")
-			flag = cli.ScenarioTakeDog(Dogs)
+			service.Println("Выбрать собаку, я пользователь")
+			flag = service.ScenarioTakeDog(Dogs)
 		case 2:
-			cli.Println("Добавить собаку, я администратор")
-			flag = cli.ScenarioAddDog(Dogs, Shelters, Policlinics)
+			service.Println("Добавить собаку, я администратор")
+			flag = service.ScenarioAddDog(Dogs, Shelters, Policlinics)
 		case 3:
-			cli.Println("Выход")
+			service.Println("Выход")
 			return
 		}
 	}
