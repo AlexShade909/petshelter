@@ -1,7 +1,9 @@
-package internal
+package repository
 
-func CreatePoliclinics() []Policlinic {
-	policlinics := []Policlinic{
+import "petshelter/internal/models"
+
+func CreatePoliclinics() []models.Policlinic {
+	policlinics := []models.Policlinic{
 		{
 			NumberClinic: "Поликлиника 0",
 			Address:      "Мира 1",
@@ -18,8 +20,8 @@ func CreatePoliclinics() []Policlinic {
 	return policlinics
 }
 
-func CreateShelters() []Shelter {
-	Shelters := []Shelter{
+func CreateShelters() []models.Shelter {
+	Shelters := []models.Shelter{
 		{
 			NumberShelter: "Шелтер 0",
 			Address:       "Пятруся Глебки 17",
@@ -36,8 +38,8 @@ func CreateShelters() []Shelter {
 	return Shelters
 }
 
-func CreateDogs(shelter []Shelter, policlinic []Policlinic) map[string]Dog {
-	dogs := map[string]Dog{
+func CreateDogs(shelter []models.Shelter, policlinic []models.Policlinic) map[string]models.Dog {
+	dogs := map[string]models.Dog{
 		"Чарли": {
 			Nickname:    "Чарли",
 			Age:         "12",

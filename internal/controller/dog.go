@@ -1,5 +1,16 @@
 package controller
 
-// TODO: Написать контроллер собак
+import (
+	"net/http"
+	"petshelter/internal/models"
+	"petshelter/internal/service"
+)
 
-type Dog struct{}
+func NicknamesHandler(dogs map[string]models.Dog) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		nicknames := service.Nicknames(dogs)
+		WriteJSON(w, http.StatusOK, map[string][]string{
+			"nicknames": nicknames,
+		})
+	}
+}

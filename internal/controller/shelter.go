@@ -1,5 +1,6 @@
 package controller
 
-// TODO: Написать контроллер приюта
-
-type Shelter struct{}
+//
+//// TODO: Написать контроллер приюта
+//
+//type Shelter struct{}

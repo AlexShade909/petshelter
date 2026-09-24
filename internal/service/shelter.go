@@ -1,5 +1,6 @@
 package service
 
-// TODO: Написать сервис приюта
-
-type Shelter struct{}
+//
+//// TODO: Написать сервис приюта
+//
+//type Shelter struct{}
