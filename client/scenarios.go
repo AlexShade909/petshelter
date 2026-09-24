@@ -1,20 +1,21 @@
-package service
+package client
 
 import (
 	"petshelter/internal"
+	"petshelter/internal/service"
 )
 
 func ScenarioTakeDog(dogs map[string]internal.Dog) bool {
 	PrintDogList(dogs)
 	nickname := ReadNonEmptyString("Введите кличку собаки: ")
-	d, ok := FindDog(dogs, nickname)
+	d, ok := service.FindDog(dogs, nickname)
 	if !ok {
 		Println("Собака с такой кличкой не найдена")
 		return true
 	}
 	PrintDogInfo(dogs, nickname)
 	if ReadYesNo("Забрать из приюта? (да/нет): ") {
-		RemoveDog(dogs, nickname)
+		service.RemoveDog(dogs, nickname)
 		Println("Собака удалена из общего списка, приюта и поликлиники")
 		PrintShelterInfo(d.Shelter)
 		PrintPoliclinicInfo(d.Policlinic)
@@ -32,7 +33,7 @@ func ScenarioAddDog(dogs map[string]internal.Dog, shelters []internal.Shelter, p
 	shelter := &shelters[shelterChoice]
 	clinicChoice := ReadMenuChoice("Выберите поликлинику: ", 0, len(policlinics)-1)
 	policlinic := &policlinics[clinicChoice]
-	dog := AddDog(
+	dog := service.AddDog(
 		dogs,
 		nickname,
 		age,
