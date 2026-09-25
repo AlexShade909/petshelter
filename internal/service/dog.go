@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"petshelter/internal/models"
 	"sort"
 )
@@ -32,5 +33,20 @@ func DogDelete(dogs map[string]models.Dog, dogName string) error {
 		return errors.New("dog not found")
 	}
 	delete(dogs, dogName)
+	return nil
+}
+
+func DogCreate(dogs map[string]models.Dog, dog models.Dog) error {
+	if dog.Nickname == "" {
+		fmt.Println(dog.Nickname, 4)
+		return errors.New("Empty nickname")
+	}
+	_, ok := dogs[dog.Nickname]
+	if ok {
+		return errors.New("Nickname occuped")
+	}
+	dogs[dog.Nickname] = dog
+	fmt.Println(dog)
+	fmt.Println(dogs[dog.Nickname])
 	return nil
 }

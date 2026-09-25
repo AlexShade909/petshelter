@@ -26,6 +26,7 @@ func RunPetshelter(ctx context.Context) error {
 	mux.HandleFunc("GET /dogs/", controller.Nicknames(Dogs))
 	mux.HandleFunc("GET /dogs/{dogName}", controller.DogInfo(Dogs))
 	mux.HandleFunc("DELETE /dogs/{dogName}", controller.DeleteDog(Dogs))
+	mux.HandleFunc("POST /dogs/", controller.CreateDog(Dogs))
 
 	go func() {
 		log.Println("server is running... \nWait request")
@@ -34,9 +35,9 @@ func RunPetshelter(ctx context.Context) error {
 		}
 	}()
 	<-ctx.Done()
-	fmt.Println("Server stoped. Graceful shutdown start")
+	fmt.Println("Server stoped. \nGraceful shutdown start...")
 	ticker := time.NewTicker(time.Second)
-	for i := 1; i < 3; i++ {
+	for i := 1; i < 2; i++ {
 		fmt.Println(i)
 		<-ticker.C
 	}

@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"net/http"
 	"petshelter/internal/models"
 	"petshelter/internal/service"
@@ -37,5 +38,21 @@ func DeleteDog(dogs map[string]models.Dog) http.HandlerFunc {
 			return
 		}
 		WriteJSON(w, http.StatusOK, "Dog Deleted. His name: "+dogName)
+	}
+}
+
+func CreateDog(dogs map[string]models.Dog) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var dog models.Dog
+		if err := json.NewDecoder(r.Body).Decode(&dog); err != nil {
+			http.Error(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+		err := service.DogCreate(dogs, dog)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		WriteJSON(w, http.StatusOK, dog)
 	}
 }
