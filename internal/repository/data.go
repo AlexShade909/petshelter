@@ -1,6 +1,8 @@
 package repository
 
-import "petshelter/internal/models"
+import (
+	"petshelter/internal/models"
+)
 
 func CreatePoliclinics() []models.Policlinic {
 	policlinics := []models.Policlinic{

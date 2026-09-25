@@ -23,12 +23,20 @@ func RunPetshelter(ctx context.Context) error {
 	Dogs := repository.CreateDogs(Shelters, Policlinics)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /dogs/", controller.DogNicknames(Dogs))
-	mux.HandleFunc("GET /dogs/{dogName}", controller.DogInfo(Dogs))
-	mux.HandleFunc("DELETE /dogs/{dogName}", controller.DogDelete(Dogs))
-	mux.HandleFunc("POST /dogs/", controller.DogCreate(Dogs))
-	mux.HandleFunc("PATCH /dogs/", controller.DogUpdate(Dogs))
-	mux.HandleFunc("PUT /dogs/", controller.DogReplace(Dogs))
+	mux.HandleFunc("GET /dogs/", controller.DogNicknamesHandler(Dogs))
+	mux.HandleFunc("GET /dogs/{dogName}", controller.DogInfoHandler(Dogs))
+	mux.HandleFunc("DELETE /dogs/{dogName}", controller.DogDeleteHandler(Dogs))
+	mux.HandleFunc("POST /dogs/", controller.DogCreateHandler(Dogs))
+	mux.HandleFunc("PATCH /dogs/", controller.DogUpdateHandler(Dogs))
+	mux.HandleFunc("PUT /dogs/", controller.DogReplaceHandler(Dogs))
+
+	mux.HandleFunc("GET /shelters/", controller.SheltersListHandler(Shelters))
+	//mux.HandleFunc(("POST /shelters/", controller.ShelterCreate(Shelters)))
+	//mux.HandleFunc(("GET /shelters/{idShelter}", controller.ShelterInfo(Shelters)))
+	//mux.HandleFunc(("GET /shelters/{idShelter}/dogs", controller.ShelterListDogs(Shelters)))
+	//mux.HandleFunc(("DELETE /shelters/{idShelter}", controller.ShelterDelete(Shelters)))
+	//mux.HandleFunc(("PATCH /shelters/{idShelter}", controller.ShelterUpdate(Shelters)))
+	//mux.HandleFunc(("PUT /shelters/{idShelter}", controller.ShelterReplace(Shelters)))
 
 	go func() {
 		log.Println("server is running... \nWait request")

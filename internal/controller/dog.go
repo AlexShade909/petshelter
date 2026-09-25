@@ -7,7 +7,7 @@ import (
 	"petshelter/internal/service"
 )
 
-func DogNicknames(dogs map[string]models.Dog) http.HandlerFunc {
+func DogNicknamesHandler(dogs map[string]models.Dog) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		nicknames := service.DogsListNicknames(dogs)
 		WriteJSON(w, http.StatusOK, map[string][]string{
@@ -16,7 +16,7 @@ func DogNicknames(dogs map[string]models.Dog) http.HandlerFunc {
 	}
 }
 
-func DogInfo(dogs map[string]models.Dog) http.HandlerFunc {
+func DogInfoHandler(dogs map[string]models.Dog) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		dogName := r.PathValue("dogName")
 		dogInfo, err := service.DogInfo(dogs, dogName)
@@ -29,7 +29,7 @@ func DogInfo(dogs map[string]models.Dog) http.HandlerFunc {
 	}
 }
 
-func DogDelete(dogs map[string]models.Dog) http.HandlerFunc {
+func DogDeleteHandler(dogs map[string]models.Dog) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		dogName := r.PathValue("dogName")
 		err := service.DogDelete(dogs, dogName)
@@ -41,7 +41,7 @@ func DogDelete(dogs map[string]models.Dog) http.HandlerFunc {
 	}
 }
 
-func DogCreate(dogs map[string]models.Dog) http.HandlerFunc {
+func DogCreateHandler(dogs map[string]models.Dog) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var dog models.Dog
 		if err := json.NewDecoder(r.Body).Decode(&dog); err != nil {
@@ -57,7 +57,7 @@ func DogCreate(dogs map[string]models.Dog) http.HandlerFunc {
 	}
 }
 
-func DogUpdate(dogs map[string]models.Dog) http.HandlerFunc {
+func DogUpdateHandler(dogs map[string]models.Dog) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var dogUpdateFields models.Dog
 		if err := json.NewDecoder(r.Body).Decode(&dogUpdateFields); err != nil {
@@ -72,7 +72,7 @@ func DogUpdate(dogs map[string]models.Dog) http.HandlerFunc {
 	}
 }
 
-func DogReplace(dogs map[string]models.Dog) http.HandlerFunc {
+func DogReplaceHandler(dogs map[string]models.Dog) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var dogReplaceFields models.Dog
 		if err := json.NewDecoder(r.Body).Decode(&dogReplaceFields); err != nil {
