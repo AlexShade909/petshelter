@@ -23,10 +23,12 @@ func RunPetshelter(ctx context.Context) error {
 	Dogs := repository.CreateDogs(Shelters, Policlinics)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /dogs/", controller.Nicknames(Dogs))
+	mux.HandleFunc("GET /dogs/", controller.DogNicknames(Dogs))
 	mux.HandleFunc("GET /dogs/{dogName}", controller.DogInfo(Dogs))
-	mux.HandleFunc("DELETE /dogs/{dogName}", controller.DeleteDog(Dogs))
-	mux.HandleFunc("POST /dogs/", controller.CreateDog(Dogs))
+	mux.HandleFunc("DELETE /dogs/{dogName}", controller.DogDelete(Dogs))
+	mux.HandleFunc("POST /dogs/", controller.DogCreate(Dogs))
+	mux.HandleFunc("PATCH /dogs/", controller.DogUpdate(Dogs))
+	mux.HandleFunc("PUT /dogs/", controller.DogReplace(Dogs))
 
 	go func() {
 		log.Println("server is running... \nWait request")
