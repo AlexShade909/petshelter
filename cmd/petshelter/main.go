@@ -10,9 +10,8 @@ import (
 )
 
 func main() {
-	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT)
 	defer cancel()
-	app := app.New()
 	if err := app.RunPetshelter(ctx); err != nil {
 		log.Fatalln(err.Error())
 	}
