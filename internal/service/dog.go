@@ -7,7 +7,23 @@ import (
 	"sort"
 )
 
-func DogsListNicknames(dogs map[string]models.Dog) []string {
+//type DogService interface {
+//	ListNicknames() []string
+//	Info(nickname string) (models.Dog, error)
+//	Delete(nickname string) error
+//	Create(dog models.Dog) error
+//	Update(dog models.Dog) error
+//	Replace(dog models.Dog) error
+//}
+
+type Dog struct {
+}
+
+func NewDog() Dog {
+	return Dog{}
+}
+
+func (d Dog) ListNicknames() []string {
 	nicknames := make([]string, 0, len(dogs))
 	for nickname := range dogs {
 		nicknames = append(nicknames, nickname)
@@ -16,7 +32,7 @@ func DogsListNicknames(dogs map[string]models.Dog) []string {
 	return nicknames
 }
 
-func DogInfo(dogs map[string]models.Dog, dogName string) (models.Dog, error) {
+func (d Dog) Info(nickname string) (models.Dog, error) {
 	if dogName == "" {
 		return models.Dog{}, errors.New("dog name is required")
 	}
@@ -27,7 +43,7 @@ func DogInfo(dogs map[string]models.Dog, dogName string) (models.Dog, error) {
 	return dog, nil
 }
 
-func DogDelete(dogs map[string]models.Dog, dogName string) error {
+func (d Dog) Delete(nickname string) error {
 	_, ok := dogs[dogName]
 	if !ok {
 		return errors.New("dog not found")
@@ -36,7 +52,7 @@ func DogDelete(dogs map[string]models.Dog, dogName string) error {
 	return nil
 }
 
-func DogCreate(dogs map[string]models.Dog, dog models.Dog) error {
+func (d Dog) Create(dog models.Dog) error {
 	if dog.Nickname == "" {
 		fmt.Println(dog.Nickname)
 		return errors.New("Empty nickname")
@@ -49,7 +65,7 @@ func DogCreate(dogs map[string]models.Dog, dog models.Dog) error {
 	return nil
 }
 
-func DogUpdate(dogs map[string]models.Dog, dogUpdateFields models.Dog) error {
+func (d Dog) Update(dog models.Dog) error {
 	if dogUpdateFields.Nickname == "" {
 		return errors.New("Nickname is empty")
 	}
@@ -62,7 +78,7 @@ func DogUpdate(dogs map[string]models.Dog, dogUpdateFields models.Dog) error {
 	return nil
 }
 
-func DogReplace(dogs map[string]models.Dog, dogReplaceFields models.Dog) error {
+func (d Dog) Replace(dog models.Dog) error {
 	if dogReplaceFields.Nickname == "" {
 		return errors.New("Nickname is empty")
 	}
