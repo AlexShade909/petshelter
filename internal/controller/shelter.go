@@ -12,6 +12,9 @@ type shelterService interface {
 	Create(shelter models.Shelter) error
 	Info(shelterNumber int) (models.Shelter, error)
 	ListDogs(shelterNumber int) ([]string, error)
+	Delete(shelterNumber int) error
+	Update(shelterNumber int, shelterUpdateData models.Shelter) (models.Shelter, error)
+	Replace(shelterNumber int, shelterUpdateData models.Shelter) (models.Shelter, error)
 }
 type shelter struct {
 	shelterService shelterService
@@ -63,4 +66,44 @@ func (s shelter) ListDogsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	WriteJSON(w, http.StatusOK, listDogsNicknames)
 	return
+}
+
+func (s shelter) DeleteHandler(w http.ResponseWriter, r *http.Request) {
+	shelterNumber, _ := strconv.Atoi(r.PathValue("NumberShelter"))
+	err := s.shelterService.Delete(shelterNumber)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	WriteJSON(w, http.StatusOK, "shelter has been deleted")
+}
+
+func (s shelter) UpdateHandler(w http.ResponseWriter, r *http.Request) {
+	shelterNumber, _ := strconv.Atoi(r.PathValue("NumberShelter"))
+	var shelterUpdateData models.Shelter
+	if err := json.NewDecoder(r.Body).Decode(&shelterUpdateData); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	data, err := s.shelterService.Update(shelterNumber, shelterUpdateData)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	WriteJSON(w, http.StatusOK, data)
+}
+
+func (s shelter) ReplaceHandler(w http.ResponseWriter, r *http.Request) {
+	shelterNumber, _ := strconv.Atoi(r.PathValue("NumberShelter"))
+	var shelterUpdateData models.Shelter
+	if err := json.NewDecoder(r.Body).Decode(&shelterUpdateData); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	data, err := s.shelterService.Replace(shelterNumber, shelterUpdateData)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	WriteJSON(w, http.StatusOK, data)
 }

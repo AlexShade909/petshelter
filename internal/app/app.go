@@ -28,9 +28,9 @@ func RunPetshelter(ctx context.Context) error {
 	mux.HandleFunc("POST /shelters", shelterController.CreateHandler)
 	mux.HandleFunc("GET /shelters/{NumberShelter}", shelterController.InfoHandler)
 	mux.HandleFunc("GET /shelters/{NumberShelter}/dogs", shelterController.ListDogsHandler)
-	//mux.HandleFunc(("DELETE /shelters/{idShelter}", controller.ShelterDelete(Shelters)))
-	//mux.HandleFunc(("PATCH /shelters/{idShelter}", controller.ShelterUpdate(Shelters)))
-	//mux.HandleFunc(("PUT /shelters/{idShelter}", controller.ShelterReplace(Shelters)))
+	mux.HandleFunc("DELETE /shelters/{NumberShelter}", shelterController.DeleteHandler)
+	mux.HandleFunc("PATCH /shelters/{NumberShelter}", shelterController.UpdateHandler)
+	mux.HandleFunc("PUT /shelters/{NumberShelter}", shelterController.ReplaceHandler)
 
 	go func() {
 		log.Println("server is running... \nwait request")

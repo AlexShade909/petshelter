@@ -47,3 +47,23 @@ func (s shelter) ListDogs(shelterNumber int) ([]string, error) {
 	}
 	return listDogs, nil
 }
+
+func (s shelter) Delete(shelterNumber int) error {
+	sheltersData[shelterNumber].Number = ""
+	sheltersData[shelterNumber].NumberShelter = 0
+	sheltersData[shelterNumber].Address = ""
+	sheltersData[shelterNumber].WorkingTime = ""
+	return nil
+}
+
+//TODO: переписать шелтер и клиник на мапу
+
+func (s shelter) Update(shelterNumber int, shelterUpdateData models.Shelter) (models.Shelter, error) {
+	sheltersData[shelterNumber] = shelterUpdateData
+	return sheltersData[shelterNumber], nil
+}
+
+func (s shelter) Replace(shelterNumber int, shelterUpdateData models.Shelter) (models.Shelter, error) {
+	sheltersData[shelterNumber] = shelterUpdateData
+	return sheltersData[shelterNumber], nil
+}
