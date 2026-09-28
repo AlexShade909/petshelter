@@ -13,7 +13,6 @@ import (
 
 func RunPetshelter(ctx context.Context) error {
 	dogService := service.NewDog()
-
 	dogController := controller.NewDog(dogService)
 	// Тут происходит инициализация сервера, контроллеров, сервисов
 	// 1) Инициализируем сервисы, которые занимаются бизнес-логикой
