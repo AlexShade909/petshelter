@@ -1,6 +1,6 @@
 package models
 
-type Policlinic struct {
+type Clinic struct {
 	NumberClinic string
 	Address      string
 	PhoneNumber  string

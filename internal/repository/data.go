@@ -4,8 +4,8 @@ import (
 	"petshelter/internal/models"
 )
 
-func CreatePoliclinics() []models.Policlinic {
-	policlinics := []models.Policlinic{
+func CreateClinics() []models.Clinic {
+	Clinics := []models.Clinic{
 		{
 			NumberClinic: "Поликлиника 0",
 			Address:      "Мира 1",
@@ -19,19 +19,19 @@ func CreatePoliclinics() []models.Policlinic {
 			WorkingTime:  "09:00-24:00",
 		},
 	}
-	return policlinics
+	return Clinics
 }
 
 func CreateShelters() []models.Shelter {
 	Shelters := []models.Shelter{
 		{
-			NumberShelter: "Шелтер 0",
+			NumberShelter: 0,
 			Address:       "Пятруся Глебки 17",
 			Number:        "+375 29 511-22-13",
 			WorkingTime:   "10:00 - 22:00",
 		},
 		{
-			NumberShelter: "Шелтер 1",
+			NumberShelter: 1,
 			Address:       "Мстислава Чудотворца 4/1",
 			Number:        "+375 12 544-65-45",
 			WorkingTime:   "11:00 - 21:15",
@@ -40,7 +40,7 @@ func CreateShelters() []models.Shelter {
 	return Shelters
 }
 
-func CreateDogs(shelter []models.Shelter, policlinic []models.Policlinic) map[string]models.Dog {
+func CreateDogs(shelter []models.Shelter, policlinic []models.Clinic) map[string]models.Dog {
 	dogs := map[string]models.Dog{
 		"Чарли": {
 			Nickname:    "Чарли",

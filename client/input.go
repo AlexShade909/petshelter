@@ -8,7 +8,6 @@
 //	"strings"
 //)
 //
-//// TODO: Переделать на структуру
 //
 //var (
 //	reader *bufio.Reader

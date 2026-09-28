@@ -1,7 +1,7 @@
 package models
 
 type Shelter struct {
-	NumberShelter string
+	NumberShelter int
 	Address       string
 	Number        string
 	WorkingTime   string

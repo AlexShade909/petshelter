@@ -2,19 +2,10 @@ package service
 
 import (
 	"errors"
-	"fmt"
 	"petshelter/internal/models"
+	"petshelter/internal/repository"
 	"sort"
 )
-
-//type DogService interface {
-//	ListNicknames() []string
-//	Info(nickname string) (models.Dog, error)
-//	Delete(nickname string) error
-//	Create(dog models.Dog) error
-//	Update(dog models.Dog) error
-//	Replace(dog models.Dog) error
-//}
 
 type Dog struct {
 }
@@ -23,9 +14,15 @@ func NewDog() Dog {
 	return Dog{}
 }
 
+var (
+	sheltersData = repository.CreateShelters()
+	clinicsData  = repository.CreateClinics()
+	dogsData     = repository.CreateDogs(sheltersData, clinicsData)
+)
+
 func (d Dog) ListNicknames() []string {
-	nicknames := make([]string, 0, len(dogs))
-	for nickname := range dogs {
+	nicknames := make([]string, 0, len(dogsData))
+	for nickname := range dogsData {
 		nicknames = append(nicknames, nickname)
 	}
 	sort.Strings(nicknames)
@@ -33,10 +30,7 @@ func (d Dog) ListNicknames() []string {
 }
 
 func (d Dog) Info(nickname string) (models.Dog, error) {
-	if dogName == "" {
-		return models.Dog{}, errors.New("dog name is required")
-	}
-	dog, ok := dogs[dogName]
+	dog, ok := dogsData[nickname]
 	if !ok {
 		return models.Dog{}, errors.New("dog not found")
 	}
@@ -44,48 +38,38 @@ func (d Dog) Info(nickname string) (models.Dog, error) {
 }
 
 func (d Dog) Delete(nickname string) error {
-	_, ok := dogs[dogName]
+	_, ok := dogsData[nickname]
 	if !ok {
 		return errors.New("dog not found")
 	}
-	delete(dogs, dogName)
+	delete(dogsData, nickname)
 	return nil
 }
 
 func (d Dog) Create(dog models.Dog) error {
-	if dog.Nickname == "" {
-		fmt.Println(dog.Nickname)
-		return errors.New("Empty nickname")
-	}
-	_, ok := dogs[dog.Nickname]
+	_, ok := dogsData[dog.Nickname]
 	if ok {
-		return errors.New("Nickname occuped")
+		return errors.New("nickname occuped")
 	}
-	dogs[dog.Nickname] = dog
+	dogsData[dog.Nickname] = dog
 	return nil
 }
 
-func (d Dog) Update(dog models.Dog) error {
-	if dogUpdateFields.Nickname == "" {
-		return errors.New("Nickname is empty")
-	}
-	_, ok := dogs[dogUpdateFields.Nickname]
+func (d Dog) Update(dogUpdateFields models.Dog) (models.Dog, error) {
+	_, ok := dogsData[dogUpdateFields.Nickname]
 	if !ok {
-		return errors.New("dog not found")
+		return models.Dog{}, errors.New("dog not found")
 	}
-	dogs[dogUpdateFields.Nickname] = dogUpdateFields
+	dogsData[dogUpdateFields.Nickname] = dogUpdateFields
 	// TODO: this PUT metod fix to PATCH.
-	return nil
+	return dogsData[dogUpdateFields.Nickname], nil
 }
 
-func (d Dog) Replace(dog models.Dog) error {
-	if dogReplaceFields.Nickname == "" {
-		return errors.New("Nickname is empty")
-	}
-	_, ok := dogs[dogReplaceFields.Nickname]
+func (d Dog) Replace(dogReplaceFields models.Dog) (models.Dog, error) {
+	_, ok := dogsData[dogReplaceFields.Nickname]
 	if !ok {
-		return errors.New("dog not found")
+		return models.Dog{}, errors.New("dog not found")
 	}
-	dogs[dogReplaceFields.Nickname] = dogReplaceFields
-	return nil
+	dogsData[dogReplaceFields.Nickname] = dogReplaceFields
+	return dogsData[dogReplaceFields.Nickname], nil
 }

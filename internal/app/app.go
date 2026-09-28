@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"petshelter/internal/controller"
-	"petshelter/internal/repository"
 	"petshelter/internal/service"
 	"time"
 )
@@ -14,27 +13,20 @@ import (
 func RunPetshelter(ctx context.Context) error {
 	dogService := service.NewDog()
 	dogController := controller.NewDog(dogService)
-	// Тут происходит инициализация сервера, контроллеров, сервисов
-	// 1) Инициализируем сервисы, которые занимаются бизнес-логикой
-	// 2) Инициализируем контроллеры, которые обрабатывают входящие запросы
-	// 3) Подводим эти контроллеры к интерфейсу http.Handler
-	// 4) Инициализируем и запускаем сервер http
-	// 5) Обрабатывает выход из приложения
-	shelters := repository.CreateShelters()
-	policlinics := repository.CreatePoliclinics()
-	dogs := repository.CreateDogs(shelters, policlinics)
+	shelterService := service.NewShelter()
+	shelterController := controller.NewShelter(shelterService)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /dogs/", dogController.NicknamesHandler())
-	mux.HandleFunc("GET /dogs/{dogName}", dogController.InfoHandler(dogs))
-	mux.HandleFunc("DELETE /dogs/{dogName}", dogController.DeleteHandler(dogs))
-	mux.HandleFunc("POST /dogs/", dogController.CreateHandler(dogs))
-	mux.HandleFunc("PATCH /dogs/", dogController.UpdateHandler(dogs))
-	mux.HandleFunc("PUT /dogs/", dogController.ReplaceHandler(dogs))
+	mux.HandleFunc("GET /dogs", dogController.NicknamesHandler)
+	mux.HandleFunc("GET /dogs/{dogName}", dogController.InfoHandler)
+	mux.HandleFunc("DELETE /dogs/{dogName}", dogController.DeleteHandler)
+	mux.HandleFunc("POST /dogs", dogController.CreateHandler)
+	mux.HandleFunc("PATCH /dogs", dogController.UpdateHandler)
+	mux.HandleFunc("PUT /dogs", dogController.ReplaceHandler)
 
-	mux.HandleFunc("GET /shelters/", controller.SheltersListHandler(Shelters))
-	//mux.HandleFunc(("POST /shelters/", controller.ShelterCreate(Shelters)))
-	//mux.HandleFunc(("GET /shelters/{idShelter}", controller.ShelterInfo(Shelters)))
+	mux.HandleFunc("GET /shelters", shelterController.ListHandler)
+	mux.HandleFunc("POST /shelters", shelterController.CreateHandler)
+	mux.HandleFunc("GET /shelters/{NumberShelter}", shelterController.InfoHandler)
 	//mux.HandleFunc(("GET /shelters/{idShelter}/dogs", controller.ShelterListDogs(Shelters)))
 	//mux.HandleFunc(("DELETE /shelters/{idShelter}", controller.ShelterDelete(Shelters)))
 	//mux.HandleFunc(("PATCH /shelters/{idShelter}", controller.ShelterUpdate(Shelters)))
