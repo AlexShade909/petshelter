@@ -28,9 +28,22 @@ func (s shelter) Create(shelterCreate models.Shelter) error {
 }
 
 func (s shelter) Info(shelterNumber int) (models.Shelter, error) {
-	//if shelterNumber >= len(sheltersData) {
-	//	return models.Shelter{}, errors.New("dog not found")
-	//}
+	if shelterNumber >= len(sheltersData) || shelterNumber < 0 {
+		return models.Shelter{}, errors.New("number not correct")
+	}
 	v := sheltersData[shelterNumber]
 	return v, nil
+}
+
+func (s shelter) ListDogs(shelterNumber int) ([]string, error) {
+	var listDogs []string
+	if shelterNumber >= len(sheltersData) || shelterNumber < 0 {
+		return []string{}, errors.New("number not correct")
+	}
+	for i, v := range dogsData {
+		if shelterNumber == v.Shelter.NumberShelter {
+			listDogs = append(listDogs, i)
+		}
+	}
+	return listDogs, nil
 }

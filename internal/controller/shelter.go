@@ -11,6 +11,7 @@ type shelterService interface {
 	SheltersList() ([]int, error)
 	Create(shelter models.Shelter) error
 	Info(shelterNumber int) (models.Shelter, error)
+	ListDogs(shelterNumber int) ([]string, error)
 }
 type shelter struct {
 	shelterService shelterService
@@ -50,5 +51,16 @@ func (s shelter) InfoHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	WriteJSON(w, http.StatusOK, shelterInfo)
+	return
+}
+
+func (s shelter) ListDogsHandler(w http.ResponseWriter, r *http.Request) {
+	shelterNumber, _ := strconv.Atoi(r.PathValue("NumberShelter"))
+	listDogsNicknames, err := s.shelterService.ListDogs(shelterNumber)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	WriteJSON(w, http.StatusOK, listDogsNicknames)
 	return
 }

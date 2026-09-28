@@ -27,24 +27,24 @@ func RunPetshelter(ctx context.Context) error {
 	mux.HandleFunc("GET /shelters", shelterController.ListHandler)
 	mux.HandleFunc("POST /shelters", shelterController.CreateHandler)
 	mux.HandleFunc("GET /shelters/{NumberShelter}", shelterController.InfoHandler)
-	//mux.HandleFunc(("GET /shelters/{idShelter}/dogs", controller.ShelterListDogs(Shelters)))
+	mux.HandleFunc("GET /shelters/{NumberShelter}/dogs", shelterController.ListDogsHandler)
 	//mux.HandleFunc(("DELETE /shelters/{idShelter}", controller.ShelterDelete(Shelters)))
 	//mux.HandleFunc(("PATCH /shelters/{idShelter}", controller.ShelterUpdate(Shelters)))
 	//mux.HandleFunc(("PUT /shelters/{idShelter}", controller.ShelterReplace(Shelters)))
 
 	go func() {
-		log.Println("server is running... \nWait request")
+		log.Println("server is running... \nwait request")
 		if err := http.ListenAndServe(":8080", mux); err != nil {
 			log.Println(err.Error())
 		}
 	}()
 	<-ctx.Done()
-	fmt.Println("Server stoped. \nGraceful shutdown start...")
+	fmt.Println("server stoped. \ngraceful shutdown start...")
 	ticker := time.NewTicker(time.Second)
 	for i := 1; i < 2; i++ {
 		fmt.Println(i)
 		<-ticker.C
 	}
-	fmt.Print("Graceful shutdown finish")
+	fmt.Print("graceful shutdown finish")
 	return nil
 }
