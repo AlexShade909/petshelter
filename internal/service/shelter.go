@@ -11,7 +11,7 @@ func NewShelter() shelter {
 	return shelter{}
 }
 
-func (s shelter) SheltersList() ([]int, error) {
+func (s shelter) ListNumbers() ([]int, error) {
 	if len(sheltersData) == 0 {
 		return nil, errors.New("empty list Shelters")
 	}
@@ -22,16 +22,12 @@ func (s shelter) SheltersList() ([]int, error) {
 	return list, nil
 }
 
-func (s shelter) Create(shelterCreate models.Shelter) error {
-	sheltersData = append(sheltersData, shelterCreate)
-	return nil
-}
-
 func (s shelter) Info(shelterNumber int) (models.Shelter, error) {
 	if shelterNumber >= len(sheltersData) || shelterNumber < 0 {
 		return models.Shelter{}, errors.New("number not correct")
 	}
 	v := sheltersData[shelterNumber]
+
 	return v, nil
 }
 
@@ -48,18 +44,35 @@ func (s shelter) ListDogs(shelterNumber int) ([]string, error) {
 	return listDogs, nil
 }
 
+func (s shelter) Create(shelterCreate models.Shelter) error {
+	sheltersData = append(sheltersData, shelterCreate)
+	return nil
+}
+
 func (s shelter) Delete(shelterNumber int) error {
 	sheltersData[shelterNumber].Number = ""
 	sheltersData[shelterNumber].NumberShelter = 0
 	sheltersData[shelterNumber].Address = ""
 	sheltersData[shelterNumber].WorkingTime = ""
+	listDogInShelter, _ := s.ListDogs(shelterNumber)
+	for _, v := range listDogInShelter {
+		dog := dogsData[v]
+		dog.Shelter = nil
+		dogsData[v] = dog
+	}
 	return nil
 }
 
-//TODO: переписать шелтер и клиник на мапу
-
-func (s shelter) Update(shelterNumber int, shelterUpdateData models.Shelter) (models.Shelter, error) {
-	sheltersData[shelterNumber] = shelterUpdateData
+func (s shelter) Update(shelterNumber int, patch models.ShelterPatch) (models.Shelter, error) {
+	if patch.Number != nil {
+		sheltersData[shelterNumber].Number = *patch.Number
+	}
+	if patch.Address != nil {
+		sheltersData[shelterNumber].Address = *patch.Address
+	}
+	if patch.WorkingTime != nil {
+		sheltersData[shelterNumber].WorkingTime = *patch.WorkingTime
+	}
 	return sheltersData[shelterNumber], nil
 }
 
