@@ -11,7 +11,7 @@ func NewShelter() shelter {
 	return shelter{}
 }
 
-func (s shelter) FullInfoHandler() ([]models.Shelter, error) {
+func (s shelter) FullInfo() (map[int]models.Shelter, error) {
 	return sheltersData, nil
 }
 

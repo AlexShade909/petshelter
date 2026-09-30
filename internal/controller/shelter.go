@@ -8,7 +8,7 @@ import (
 )
 
 type shelterService interface {
-	FullInfoHandler() ([]models.Shelter, error)
+	FullInfo() ([]models.Shelter, error)
 	Info(shelterNumber int) (models.Shelter, error)
 	ListDogs(shelterNumber int) ([]string, error)
 	Create(shelter models.Shelter) error
@@ -25,7 +25,7 @@ func NewShelter(shelterService shelterService) shelter {
 }
 
 func (s shelter) FullInfoHandler(w http.ResponseWriter, r *http.Request) {
-	data, err := s.shelterService.FullInfoHandler()
+	data, err := s.shelterService.FullInfo()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

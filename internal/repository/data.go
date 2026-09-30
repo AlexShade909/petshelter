@@ -22,19 +22,17 @@ func CreateClinics() []models.Clinic {
 	return Clinics
 }
 
-func CreateShelters() []models.Shelter {
-	Shelters := []models.Shelter{
-		{
-			NumberShelter: 0,
-			Address:       "Пятруся Глебки 17",
-			Number:        "+375 29 511-22-13",
-			WorkingTime:   "10:00 - 22:00",
+func CreateShelters() map[int]models.Shelter {
+	Shelters := map[int]models.Shelter{
+		1: {
+			Address:     "Пятруся Глебки 17",
+			Number:      "+375 29 511-22-13",
+			WorkingTime: "10:00 - 22:00",
 		},
-		{
-			NumberShelter: 1,
-			Address:       "Мстислава Чудотворца 4/1",
-			Number:        "+375 12 544-65-45",
-			WorkingTime:   "11:00 - 21:15",
+		2: {
+			Address:     "Мстислава Чудотворца 4/1",
+			Number:      "+375 12 544-65-45",
+			WorkingTime: "11:00 - 21:15",
 		},
 	}
 	return Shelters
