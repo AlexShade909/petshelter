@@ -28,8 +28,8 @@ func RunPetshelter(ctx context.Context) error {
 	mux.HandleFunc("GET /shelters/{NumberShelter}", shelterController.InfoHandler)
 	mux.HandleFunc("POST /shelters", shelterController.CreateHandler)
 	mux.HandleFunc("DELETE /shelters/{NumberShelter}", shelterController.DeleteHandler)
-	//mux.HandleFunc("PATCH /shelters/{NumberShelter}", shelterController.UpdateHandler)
-	//mux.HandleFunc("PUT /shelters/{NumberShelter}", shelterController.ReplaceHandler)
+	mux.HandleFunc("PATCH /shelters/{NumberShelter}", shelterController.UpdateHandler)
+	mux.HandleFunc("PUT /shelters/{NumberShelter}", shelterController.ReplaceHandler)
 
 	go func() {
 		log.Println("server is running... \nwait request")

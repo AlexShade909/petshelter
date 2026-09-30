@@ -7,7 +7,7 @@ type Shelter struct {
 }
 
 type ShelterPatch struct {
-	Address     *string `json:"Address"`
-	Number      *string `json:"Number"`
-	WorkingTime *string `json:"WorkingTime"`
+	Address     string `json:"Address"`
+	Number      string `json:"Number"`
+	WorkingTime string `json:"WorkingTime"`
 }

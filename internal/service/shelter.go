@@ -48,23 +48,27 @@ func (s shelter) Delete(shelterNumber int) error {
 	return nil
 }
 
-/*
 func (s shelter) Update(shelterNumber int, patch models.ShelterPatch) (models.Shelter, error) {
-	if patch.Number != nil {
-		sheltersData[shelterNumber].Number = *patch.Number
+	sh, ok := sheltersData[shelterNumber]
+	if !ok {
+		return models.Shelter{}, errors.New("shelter not found")
 	}
-	if patch.Address != nil {
-		sheltersData[shelterNumber].Address = *patch.Address
+
+	if patch.Address != "" {
+		sh.Address = patch.Address
 	}
-	if patch.WorkingTime != nil {
-		sheltersData[shelterNumber].WorkingTime = *patch.WorkingTime
+	if patch.Number != "" {
+		sh.Number = patch.Number
 	}
+	if patch.WorkingTime != "" {
+		sh.WorkingTime = patch.WorkingTime
+	}
+
+	sheltersData[shelterNumber] = sh
 	return sheltersData[shelterNumber], nil
 }
 
-func (s shelter) Replace(shelterNumber int, shelterUpdateData models.Shelter) (models.Shelter, error) {
-	sheltersData[shelterNumber] = shelterUpdateData
-	sheltersData[shelterNumber].NumberShelter = shelterNumber
+func (s shelter) Replace(shelterNumber int, patch models.Shelter) (models.Shelter, error) {
+	sheltersData[shelterNumber] = patch
 	return sheltersData[shelterNumber], nil
 }
-*/
