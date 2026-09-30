@@ -15,9 +15,10 @@ func NewDog() Dog {
 }
 
 var (
-	sheltersData = repository.CreateShelters()
-	clinicsData  = repository.CreateClinics()
-	dogsData     = repository.CreateDogs(sheltersData, clinicsData)
+	sheltersData  = repository.CreateShelters()
+	nextShelterID = len(sheltersData)
+	clinicsData   = repository.CreateClinics()
+	dogsData      = repository.CreateDogs(sheltersData, clinicsData)
 )
 
 func (d Dog) ListNicknames() []string {

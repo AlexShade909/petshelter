@@ -5,6 +5,6 @@ type Dog struct {
 	Age         string
 	WeightKg    string
 	CheckInDate string
-	Shelter     *Shelter
-	Policlinic  *Clinic
+	Shelter     Shelter
+	Сlinic      *Clinic
 }

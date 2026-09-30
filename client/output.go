@@ -17,7 +17,7 @@
 //	Print("К какому шелтеру относится: ")
 //	Println(d.Shelter.Address)
 //	Print("К какой поликлинике относится: ")
-//	Println(d.Policlinic.Address)
+//	Println(d.Сlinic.Address)
 //}
 //
 //func PrintDogList(dogs map[string]internal.Dog) {
@@ -38,7 +38,7 @@
 //	Println(s.WorkingTime)
 //}
 //
-//func PrintPoliclinicInfo(p *internal.Policlinic) {
+//func PrintPoliclinicInfo(p *internal.Сlinic) {
 //	Print("Название: ")
 //	Println(p.NumberClinic)
 //	Print("адрес: ")

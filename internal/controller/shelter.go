@@ -8,13 +8,13 @@ import (
 )
 
 type shelterService interface {
-	FullInfo() ([]models.Shelter, error)
+	FullInfo() (map[int]models.Shelter, error)
 	Info(shelterNumber int) (models.Shelter, error)
 	ListDogs(shelterNumber int) ([]string, error)
 	Create(shelter models.Shelter) error
 	Delete(shelterNumber int) error
-	Update(shelterNumber int, patch models.ShelterPatch) (models.Shelter, error)
-	Replace(shelterNumber int, shelterUpdateData models.Shelter) (models.Shelter, error)
+	//Update(shelterNumber int, patch models.ShelterPatch) (models.Shelter, error)
+	//Replace(shelterNumber int, shelterUpdateData models.Shelter) (models.Shelter, error)
 }
 type shelter struct {
 	shelterService shelterService
@@ -42,7 +42,6 @@ func (s shelter) InfoHandler(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	shelterNumber, _ := strconv.Atoi(r.PathValue("NumberShelter"))
-	//shelterNumber := 1
 	resp.Info, err = s.shelterService.Info(shelterNumber)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -71,15 +70,18 @@ func (s shelter) CreateHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s shelter) DeleteHandler(w http.ResponseWriter, r *http.Request) {
+
 	shelterNumber, _ := strconv.Atoi(r.PathValue("NumberShelter"))
 	err := s.shelterService.Delete(shelterNumber)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	WriteJSON(w, http.StatusOK, "data in shelter has been deleted")
+	resp := "data in shelter has been deleted. Number deleted shelter: " + strconv.Itoa(shelterNumber)
+	WriteJSON(w, http.StatusOK, resp)
 }
 
+/*
 func (s shelter) UpdateHandler(w http.ResponseWriter, r *http.Request) {
 	shelterNumber, _ := strconv.Atoi(r.PathValue("NumberShelter"))
 
@@ -112,3 +114,4 @@ func (s shelter) ReplaceHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	WriteJSON(w, http.StatusOK, data)
 }
+*/

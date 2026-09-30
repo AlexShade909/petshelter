@@ -18,13 +18,13 @@
 //		service.RemoveDog(dogs, nickname)
 //		Println("Собака удалена из общего списка, приюта и поликлиники")
 //		PrintShelterInfo(d.Shelter)
-//		PrintPoliclinicInfo(d.Policlinic)
+//		PrintPoliclinicInfo(d.Сlinic)
 //	}
 //
 //	return ReadYesNo("Смотреть ещё? (да/нет): ")
 //}
 //
-//func ScenarioAddDog(dogs map[string]internal.Dog, shelters []internal.Shelter, policlinics []internal.Policlinic) bool {
+//func ScenarioAddDog(dogs map[string]internal.Dog, shelters []internal.Shelter, policlinics []internal.Сlinic) bool {
 //	nickname := ReadNonEmptyString("Введите кличку: ")
 //	age := ReadNonEmptyString("Введите возраст: ")
 //	weight := ReadNonEmptyString("Введите вес: ")
