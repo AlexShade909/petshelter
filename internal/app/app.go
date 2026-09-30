@@ -24,7 +24,7 @@ func RunPetshelter(ctx context.Context) error {
 	mux.HandleFunc("PATCH /dogs", dogController.UpdateHandler)
 	mux.HandleFunc("PUT /dogs", dogController.ReplaceHandler)
 
-	mux.HandleFunc("GET /shelters", shelterController.ListNumbersHandler)
+	mux.HandleFunc("GET /shelters", shelterController.FullInfoHandler)
 	mux.HandleFunc("GET /shelters/{NumberShelter}", shelterController.InfoHandler)
 	mux.HandleFunc("POST /shelters", shelterController.CreateHandler)
 	mux.HandleFunc("DELETE /shelters/{NumberShelter}", shelterController.DeleteHandler)
