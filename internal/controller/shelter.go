@@ -77,7 +77,7 @@ func (s shelter) DeleteHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	resp := "data in shelter has been deleted. Number deleted shelter: " + strconv.Itoa(shelterNumber)
+	resp := "data in shelter has been deleted. PhoneNumber deleted shelter: " + strconv.Itoa(shelterNumber)
 	WriteJSON(w, http.StatusOK, resp)
 }
 
