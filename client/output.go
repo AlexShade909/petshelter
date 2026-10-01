@@ -33,7 +33,7 @@
 //	Print("Адрес: ")
 //	Println(s.Address)
 //	Print("Телефон: ")
-//	Println(s.Number)
+//	Println(s.PhoneNumber)
 //	Print("Время работы: ")
 //	Println(s.WorkingTime)
 //}

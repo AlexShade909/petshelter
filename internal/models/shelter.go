@@ -2,12 +2,12 @@ package models
 
 type Shelter struct {
 	Address     string
-	Number      string
+	PhoneNumber string
 	WorkingTime string
 }
 
 type ShelterPatch struct {
 	Address     string `json:"Address"`
-	Number      string `json:"Number"`
+	PhoneNumber string `json:"PhoneNumber"`
 	WorkingTime string `json:"WorkingTime"`
 }

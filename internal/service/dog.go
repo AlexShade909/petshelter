@@ -18,6 +18,7 @@ var (
 	sheltersData  = repository.CreateShelters()
 	nextShelterID = len(sheltersData)
 	clinicsData   = repository.CreateClinics()
+	nextClinicID  = len(clinicsData)
 	dogsData      = repository.CreateDogs(sheltersData, clinicsData)
 )
 

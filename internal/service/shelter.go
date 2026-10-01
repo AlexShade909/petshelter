@@ -57,8 +57,8 @@ func (s shelter) Update(shelterNumber int, patch models.ShelterPatch) (models.Sh
 	if patch.Address != "" {
 		sh.Address = patch.Address
 	}
-	if patch.Number != "" {
-		sh.Number = patch.Number
+	if patch.PhoneNumber != "" {
+		sh.PhoneNumber = patch.PhoneNumber
 	}
 	if patch.WorkingTime != "" {
 		sh.WorkingTime = patch.WorkingTime
