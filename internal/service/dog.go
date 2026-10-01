@@ -50,7 +50,7 @@ func (d Dog) Delete(nickname string) error {
 func (d Dog) Create(dog models.Dog) error {
 	_, ok := dogsData[dog.Nickname]
 	if ok {
-		return errors.New("nickname occuped")
+		return errors.New("nickname occupied")
 	}
 	dogsData[dog.Nickname] = dog
 	return nil

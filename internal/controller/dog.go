@@ -35,7 +35,6 @@ func (d dog) InfoHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	WriteJSON(w, http.StatusOK, dogInfo)
-	return
 }
 
 func (d dog) DeleteHandler(w http.ResponseWriter, r *http.Request) {
@@ -63,7 +62,7 @@ func (d dog) CreateHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	WriteJSON(w, http.StatusCreated, dogCreate)
+	WriteJSON(w, http.StatusOK, dogCreate)
 }
 
 func (d dog) UpdateHandler(w http.ResponseWriter, r *http.Request) {
@@ -81,7 +80,7 @@ func (d dog) UpdateHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	WriteJSON(w, http.StatusCreated, dogUpdated)
+	WriteJSON(w, http.StatusOK, dogUpdated)
 }
 
 func (d dog) ReplaceHandler(w http.ResponseWriter, r *http.Request) {
