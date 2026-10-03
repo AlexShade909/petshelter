@@ -10,7 +10,7 @@ import (
 type clinicService interface {
 	FullInfo() (map[int]models.Clinic, error)
 	Info(clinicNumber int) (models.Clinic, error)
-	ListClinics(clinicNumber int) ([]string, error)
+	ListDogs(clinicNumber int) ([]string, error)
 	Create(clinic models.Clinic) error
 	Delete(clinicNumber int) error
 	Update(clinicNumber int, patch models.ClinicPatch) (models.Clinic, error)
@@ -49,7 +49,7 @@ func (c clinic) InfoHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	resp.ListDogs, err = c.clinicService.ListClinics(clinicNumber)
+	resp.ListDogs, err = c.clinicService.ListDogs(clinicNumber)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
