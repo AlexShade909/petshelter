@@ -8,7 +8,7 @@ import (
 
 type DogService interface {
 	ListNicknames() []string
-	Info(nickname string) (models.Dog, error)
+	Info(ID int) (models.Dog, error)
 	Delete(nickname string) error
 	Create(dog models.Dog) error
 	Update(dogUpdateFields models.Dog) (models.Dog, error)
@@ -28,8 +28,8 @@ func (d dog) NicknamesHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (d dog) InfoHandler(w http.ResponseWriter, r *http.Request) {
-	dogName := r.PathValue("dogName")
-	dogInfo, err := d.dogService.Info(dogName)
+	dogID := r.PathValue("dogID")
+	dogInfo, err := d.dogService.Info(dogID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

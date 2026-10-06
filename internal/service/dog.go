@@ -24,15 +24,15 @@ var (
 
 func (d Dog) ListNicknames() []string {
 	nicknames := make([]string, 0, len(dogsData))
-	for nickname := range dogsData {
-		nicknames = append(nicknames, nickname)
+	for _, v := range dogsData {
+		nicknames = append(nicknames, v.Nickname)
 	}
 	sort.Strings(nicknames)
 	return nicknames
 }
 
-func (d Dog) Info(nickname string) (models.Dog, error) {
-	dog, ok := dogsData[nickname]
+func (d Dog) Info(ID int) (models.Dog, error) {
+	dog, ok := dogsData[ID]
 	if !ok {
 		return models.Dog{}, errors.New("dog not found")
 	}
