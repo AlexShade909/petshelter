@@ -1,571 +1,333 @@
 package service
 
 import (
-	"errors"
+	"reflect"
+	"sort"
 	"testing"
 
 	"petshelter/internal/models"
 )
 
-// =========================
-// Восстановление данных
-// =========================
-
-func backupClinicData(t *testing.T) {
+// resetClinics подменяет глобальную мапу клиник и счётчик ID известными данными,
+// а после теста восстанавливает исходные значения.
+// resetDogs находится в dog_test.go (тот же пакет).
+func resetClinics(t *testing.T, data map[int]models.Clinic) {
 	t.Helper()
-
-	oldClinicsData := clinicsData
-	oldDogsData := dogsData
-	oldNextClinicID := nextClinicID
-
+	origData, origNext := clinicsData, nextClinicID
+	clinicsData = data
+	nextClinicID = len(data)
 	t.Cleanup(func() {
-		clinicsData = oldClinicsData
-		dogsData = oldDogsData
-		nextClinicID = oldNextClinicID
+		clinicsData, nextClinicID = origData, origNext
 	})
 }
 
-// =========================
-// FullInfo
-// =========================
+var (
+	testClinicA = models.Clinic{Address: "Мира 1", PhoneNumber: "+111", WorkingTime: "09:00-18:00"}
+	testClinicB = models.Clinic{Address: "Ленина 133", PhoneNumber: "+222", WorkingTime: "10:00-20:00"}
+	testClinicC = models.Clinic{Address: "Победы 5", PhoneNumber: "+333", WorkingTime: "08:00-16:00"}
+)
 
 func TestClinic_FullInfo(t *testing.T) {
-	backupClinicData(t)
+	resetClinics(t, map[int]models.Clinic{0: testClinicA, 1: testClinicB})
 
-	clinicsData = map[int]models.Clinic{
-		0: {
-			Address:     "Мира 1",
-			PhoneNumber: "+375291111111",
-			WorkingTime: "10:00-23:00",
-		},
-		1: {
-			Address:     "Ленина 10",
-			PhoneNumber: "+375292222222",
-			WorkingTime: "09:00-18:00",
-		},
-	}
-
-	service := NewClinic()
-
-	data, err := service.FullInfo()
+	got, err := NewClinic().FullInfo()
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-
-	if len(data) != 2 {
-		t.Fatalf("expected 2 clinics, got %d", len(data))
-	}
-
-	if data[0].Address != "Мира 1" {
-		t.Errorf("unexpected address: %s", data[0].Address)
-	}
-
-	if data[1].PhoneNumber != "+375292222222" {
-		t.Errorf("unexpected phone: %s", data[1].PhoneNumber)
+	want := map[int]models.Clinic{0: testClinicA, 1: testClinicB}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %+v, want %+v", got, want)
 	}
 }
-
-// =========================
-// Info
-// =========================
 
 func TestClinic_Info(t *testing.T) {
-	backupClinicData(t)
+	resetClinics(t, map[int]models.Clinic{0: testClinicA, 1: testClinicB})
 
-	expected := models.Clinic{
-		Address:     "Мира 1",
-		PhoneNumber: "+375291111111",
-		WorkingTime: "10:00-23:00",
-	}
+	t.Run("found", func(t *testing.T) {
+		got, err := NewClinic().Info(1)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got != testClinicB {
+			t.Errorf("got %+v, want %+v", got, testClinicB)
+		}
+	})
 
-	clinicsData = map[int]models.Clinic{
-		1: expected,
-	}
-
-	service := NewClinic()
-
-	data, err := service.Info(1)
-
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if data != expected {
-		t.Errorf("expected %+v, got %+v", expected, data)
-	}
+	t.Run("not found", func(t *testing.T) {
+		if _, err := NewClinic().Info(99); err == nil {
+			t.Error("expected error, got nil")
+		}
+	})
 }
 
-// =========================
-// Info - not found
-// =========================
-
-func TestClinic_Info_NotFound(t *testing.T) {
-	backupClinicData(t)
-
-	clinicsData = map[int]models.Clinic{}
-
-	service := NewClinic()
-
-	_, err := service.Info(1)
-
-	if err == nil {
-		t.Fatal("expected error, got nil")
+func TestClinic_ListDogs(t *testing.T) {
+	// ВНИМАНИЕ: поле в models.Dog называется с кириллической «С» (Сlinic).
+	dogs := map[int]models.Dog{
+		0: {ID: 0, Nickname: "Rex", Сlinic: testClinicA},
+		1: {ID: 1, Nickname: "Bim", Сlinic: testClinicA},
+		2: {ID: 2, Nickname: "Max", Сlinic: testClinicB},
 	}
 
-	if !errors.Is(err, errors.New("clinic not found")) &&
-		err.Error() != "clinic not found" {
-		t.Errorf("unexpected error: %v", err)
-	}
+	t.Run("returns only dogs of the clinic", func(t *testing.T) {
+		resetClinics(t, map[int]models.Clinic{0: testClinicA, 1: testClinicB})
+		resetDogs(t, dogs)
+
+		got, err := NewClinic().ListDogs(0)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		sort.Strings(got) // порядок обхода мапы случайный
+		want := []string{"Bim", "Rex"}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("got %v, want %v", got, want)
+		}
+	})
+
+	t.Run("clinic without dogs", func(t *testing.T) {
+		resetClinics(t, map[int]models.Clinic{0: testClinicA, 1: testClinicB, 2: testClinicC})
+		resetDogs(t, dogs)
+
+		got, err := NewClinic().ListDogs(2)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(got) != 0 {
+			t.Errorf("got %v, want no dogs", got)
+		}
+	})
+
+	t.Run("invalid number", func(t *testing.T) {
+		resetClinics(t, map[int]models.Clinic{0: testClinicA, 1: testClinicB})
+		resetDogs(t, dogs)
+
+		for _, n := range []int{-1, 2, 99} {
+			if _, err := NewClinic().ListDogs(n); err == nil {
+				t.Errorf("number %d: expected error, got nil", n)
+			}
+		}
+	})
+
+	// Этот тест падает на текущем коде: проверка clinicNumber >= len(clinicsData)
+	// ломается после удаления клиники, потому что ключи перестают быть 0..len-1.
+	t.Run("existing clinic works after another was deleted", func(t *testing.T) {
+		resetClinics(t, map[int]models.Clinic{0: testClinicA, 1: testClinicB, 2: testClinicC})
+		resetDogs(t, map[int]models.Dog{
+			0: {ID: 0, Nickname: "Rex", Сlinic: testClinicC},
+		})
+		svc := NewClinic()
+		if err := svc.Delete(1); err != nil { // размер мапы 2, а ключ 2 существует
+			t.Fatalf("delete: %v", err)
+		}
+
+		got, err := svc.ListDogs(2)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !reflect.DeepEqual(got, []string{"Rex"}) {
+			t.Errorf("got %v, want [Rex]", got)
+		}
+	})
+
+	// Этот тест тоже падает на текущем коде: номер удалённой клиники меньше len(),
+	// проверка проходит, и для пустой Clinic{} находятся «собаки без клиники».
+	t.Run("deleted clinic number returns error", func(t *testing.T) {
+		resetClinics(t, map[int]models.Clinic{0: testClinicA, 2: testClinicC}) // ключа 1 нет
+		resetDogs(t, map[int]models.Dog{
+			0: {ID: 0, Nickname: "Stray"}, // без клиники
+		})
+
+		got, err := NewClinic().ListDogs(1)
+
+		if err == nil {
+			t.Errorf("expected error for missing clinic, got %v", got)
+		}
+	})
 }
-
-// =========================
-// ListClinics
-// =========================
-
-func TestClinic_ListClinics(t *testing.T) {
-	backupClinicData(t)
-
-	clinic := models.Clinic{
-		Address:     "Мира 1",
-		PhoneNumber: "+375291111111",
-		WorkingTime: "10:00-23:00",
-	}
-
-	clinicsData = map[int]models.Clinic{
-		0: clinic,
-	}
-
-	// ВАЖНО:
-	// Здесь используется твоя структура Dog.
-	// Поле должно называться Сlinic так же,
-	// как в production-коде.
-	dogsData = map[string]models.Dog{
-		"Барсик": {
-			Сlinic: clinic,
-		},
-		"Шарик": {
-			Сlinic: clinic,
-		},
-		"Рекс": {
-			Сlinic: models.Clinic{
-				Address:     "Ленина 10",
-				PhoneNumber: "+375292222222",
-				WorkingTime: "09:00-18:00",
-			},
-		},
-	}
-
-	service := NewClinic()
-
-	data, err := service.ListDogs(0)
-
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if len(data) != 2 {
-		t.Fatalf("expected 2 dogs, got %d", len(data))
-	}
-
-	found := map[string]bool{}
-
-	for _, name := range data {
-		found[name] = true
-	}
-
-	if !found["Барсик"] {
-		t.Error("Барсик should be in clinic list")
-	}
-
-	if !found["Шарик"] {
-		t.Error("Шарик should be in clinic list")
-	}
-
-	if found["Рекс"] {
-		t.Error("Рекс should not be in clinic list")
-	}
-}
-
-// =========================
-// ListClinics - invalid number
-// =========================
-
-func TestClinic_ListClinics_InvalidNumber(t *testing.T) {
-	backupClinicData(t)
-
-	clinicsData = map[int]models.Clinic{
-		0: {
-			Address:     "Мира 1",
-			PhoneNumber: "+375291111111",
-			WorkingTime: "10:00-23:00",
-		},
-	}
-
-	service := NewClinic()
-
-	_, err := service.ListDogs(-1)
-
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-
-	if err.Error() != "number not correct" {
-		t.Errorf(
-			"expected error %q, got %q",
-			"number not correct",
-			err.Error(),
-		)
-	}
-}
-
-func TestClinic_ListClinics_NumberTooLarge(t *testing.T) {
-	backupClinicData(t)
-
-	clinicsData = map[int]models.Clinic{
-		0: {
-			Address:     "Мира 1",
-			PhoneNumber: "+375291111111",
-			WorkingTime: "10:00-23:00",
-		},
-	}
-
-	service := NewClinic()
-
-	_, err := service.ListDogs(1)
-
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-
-	if err.Error() != "number not correct" {
-		t.Errorf(
-			"expected error %q, got %q",
-			"number not correct",
-			err.Error(),
-		)
-	}
-}
-
-// =========================
-// Create
-// =========================
 
 func TestClinic_Create(t *testing.T) {
-	backupClinicData(t)
+	t.Run("stores clinic", func(t *testing.T) {
+		resetClinics(t, map[int]models.Clinic{0: testClinicA})
 
-	clinicsData = map[int]models.Clinic{}
-	nextClinicID = 5
+		err := NewClinic().Create(testClinicB)
 
-	newClinic := models.Clinic{
-		Address:     "Новая 10",
-		PhoneNumber: "+375293333333",
-		WorkingTime: "08:00-20:00",
-	}
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(clinicsData) != 2 {
+			t.Fatalf("storage size = %d, want 2", len(clinicsData))
+		}
+		if clinicsData[0] != testClinicA {
+			t.Errorf("existing clinic changed: %+v", clinicsData[0])
+		}
+		if clinicsData[1] != testClinicB {
+			t.Errorf("new clinic = %+v, want %+v", clinicsData[1], testClinicB)
+		}
+	})
 
-	service := NewClinic()
+	t.Run("does not overwrite existing after delete", func(t *testing.T) {
+		resetClinics(t, map[int]models.Clinic{0: testClinicA, 1: testClinicB, 2: testClinicC})
+		svc := NewClinic()
+		if err := svc.Delete(0); err != nil {
+			t.Fatalf("delete: %v", err)
+		}
 
-	err := service.Create(newClinic)
+		if err := svc.Create(models.Clinic{Address: "New"}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+		if clinicsData[2] != testClinicC {
+			t.Errorf("clinic 2 overwritten: %+v", clinicsData[2])
+		}
+		if len(clinicsData) != 3 {
+			t.Errorf("storage size = %d, want 3", len(clinicsData))
+		}
+	})
 
-	created, ok := clinicsData[5]
+	t.Run("each create gets its own id", func(t *testing.T) {
+		resetClinics(t, map[int]models.Clinic{})
+		svc := NewClinic()
 
-	if !ok {
-		t.Fatal("clinic was not created")
-	}
+		_ = svc.Create(testClinicA)
+		_ = svc.Create(testClinicB)
 
-	if created != newClinic {
-		t.Errorf(
-			"expected %+v, got %+v",
-			newClinic,
-			created,
-		)
-	}
-
-	if nextClinicID != 6 {
-		t.Errorf(
-			"expected nextClinicID 6, got %d",
-			nextClinicID,
-		)
-	}
+		if len(clinicsData) != 2 {
+			t.Errorf("storage size = %d, want 2", len(clinicsData))
+		}
+	})
 }
-
-// =========================
-// Delete
-// =========================
 
 func TestClinic_Delete(t *testing.T) {
-	backupClinicData(t)
+	t.Run("ok", func(t *testing.T) {
+		resetClinics(t, map[int]models.Clinic{0: testClinicA, 1: testClinicB})
 
-	clinicsData = map[int]models.Clinic{
-		1: {
-			Address:     "Мира 1",
-			PhoneNumber: "+375291111111",
-			WorkingTime: "10:00-23:00",
-		},
-		2: {
-			Address:     "Ленина 10",
-			PhoneNumber: "+375292222222",
-			WorkingTime: "09:00-18:00",
-		},
-	}
+		err := NewClinic().Delete(0)
 
-	service := NewClinic()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if _, ok := clinicsData[0]; ok {
+			t.Error("clinic 0 still in storage")
+		}
+		if _, ok := clinicsData[1]; !ok {
+			t.Error("clinic 1 was removed by mistake")
+		}
+	})
 
-	err := service.Delete(1)
+	t.Run("not found", func(t *testing.T) {
+		resetClinics(t, map[int]models.Clinic{0: testClinicA})
 
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+		err := NewClinic().Delete(99)
 
-	if _, ok := clinicsData[1]; ok {
-		t.Error("clinic should have been deleted")
-	}
-
-	if _, ok := clinicsData[2]; !ok {
-		t.Error("clinic 2 should still exist")
-	}
+		if err == nil {
+			t.Error("expected error, got nil")
+		}
+		if len(clinicsData) != 1 {
+			t.Errorf("storage size = %d, want 1", len(clinicsData))
+		}
+	})
 }
-
-// =========================
-// Delete - not found
-// =========================
-
-func TestClinic_Delete_NotFound(t *testing.T) {
-	backupClinicData(t)
-
-	clinicsData = map[int]models.Clinic{}
-
-	service := NewClinic()
-
-	err := service.Delete(1)
-
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-
-	if err.Error() != "clinic not found" {
-		t.Errorf(
-			"expected error %q, got %q",
-			"clinic not found",
-			err.Error(),
-		)
-	}
-}
-
-// =========================
-// Update
-// =========================
 
 func TestClinic_Update(t *testing.T) {
-	backupClinicData(t)
+	t.Run("partial update keeps other fields", func(t *testing.T) {
+		resetClinics(t, map[int]models.Clinic{1: testClinicA})
 
-	clinicsData = map[int]models.Clinic{
-		1: {
-			Address:     "Мира 1",
-			PhoneNumber: "+375291111111",
-			WorkingTime: "10:00-23:00",
-		},
-	}
+		got, err := NewClinic().Update(1, models.ClinicPatch{PhoneNumber: "+999"})
 
-	patch := models.ClinicPatch{
-		Address:     "Новая 20",
-		PhoneNumber: "+375294444444",
-		WorkingTime: "08:00-20:00",
-	}
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		want := models.Clinic{
+			Address:     testClinicA.Address,
+			PhoneNumber: "+999",
+			WorkingTime: testClinicA.WorkingTime,
+		}
+		if got != want {
+			t.Errorf("got %+v, want %+v", got, want)
+		}
+		if clinicsData[1] != want {
+			t.Errorf("storage %+v differs from returned %+v", clinicsData[1], want)
+		}
+	})
 
-	service := NewClinic()
+	t.Run("updates all fields", func(t *testing.T) {
+		resetClinics(t, map[int]models.Clinic{1: testClinicA})
+		patch := models.ClinicPatch{Address: "A2", PhoneNumber: "P2", WorkingTime: "W2"}
 
-	data, err := service.Update(1, patch)
+		got, err := NewClinic().Update(1, patch)
 
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		want := models.Clinic{Address: "A2", PhoneNumber: "P2", WorkingTime: "W2"}
+		if got != want {
+			t.Errorf("got %+v, want %+v", got, want)
+		}
+	})
 
-	expected := models.Clinic{
-		Address:     "Новая 20",
-		PhoneNumber: "+375294444444",
-		WorkingTime: "08:00-20:00",
-	}
+	t.Run("empty patch changes nothing", func(t *testing.T) {
+		resetClinics(t, map[int]models.Clinic{1: testClinicA})
 
-	if data != expected {
-		t.Errorf(
-			"expected %+v, got %+v",
-			expected,
-			data,
-		)
-	}
+		got, err := NewClinic().Update(1, models.ClinicPatch{})
 
-	if clinicsData[1] != expected {
-		t.Errorf(
-			"data in map was not updated: %+v",
-			clinicsData[1],
-		)
-	}
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got != testClinicA {
+			t.Errorf("got %+v, want %+v", got, testClinicA)
+		}
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		resetClinics(t, map[int]models.Clinic{1: testClinicA})
+
+		_, err := NewClinic().Update(99, models.ClinicPatch{Address: "X"})
+
+		if err == nil {
+			t.Error("expected error, got nil")
+		}
+		if _, ok := clinicsData[99]; ok {
+			t.Error("clinic 99 must not be created by Update")
+		}
+	})
 }
-
-// =========================
-// Update - partial patch
-// =========================
-
-func TestClinic_Update_PartialPatch(t *testing.T) {
-	backupClinicData(t)
-
-	original := models.Clinic{
-		Address:     "Мира 1",
-		PhoneNumber: "+375291111111",
-		WorkingTime: "10:00-23:00",
-	}
-
-	clinicsData = map[int]models.Clinic{
-		1: original,
-	}
-
-	patch := models.ClinicPatch{
-		Address: "Новая 20",
-	}
-
-	service := NewClinic()
-
-	data, err := service.Update(1, patch)
-
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if data.Address != "Новая 20" {
-		t.Errorf(
-			"expected address %q, got %q",
-			"Новая 20",
-			data.Address,
-		)
-	}
-
-	if data.PhoneNumber != original.PhoneNumber {
-		t.Errorf(
-			"phone number should not change, got %q",
-			data.PhoneNumber,
-		)
-	}
-
-	if data.WorkingTime != original.WorkingTime {
-		t.Errorf(
-			"working time should not change, got %q",
-			data.WorkingTime,
-		)
-	}
-}
-
-// =========================
-// Update - not found
-// =========================
-
-func TestClinic_Update_NotFound(t *testing.T) {
-	backupClinicData(t)
-
-	clinicsData = map[int]models.Clinic{}
-
-	service := NewClinic()
-
-	patch := models.ClinicPatch{
-		Address: "Новая 20",
-	}
-
-	_, err := service.Update(1, patch)
-
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-
-	if err.Error() != "clinic not found" {
-		t.Errorf(
-			"expected error %q, got %q",
-			"clinic not found",
-			err.Error(),
-		)
-	}
-}
-
-// =========================
-// Replace
-// =========================
 
 func TestClinic_Replace(t *testing.T) {
-	backupClinicData(t)
+	t.Run("replaces fully", func(t *testing.T) {
+		resetClinics(t, map[int]models.Clinic{1: testClinicA})
+		replacement := models.Clinic{Address: "Only address"}
 
-	clinicsData = map[int]models.Clinic{
-		1: {
-			Address:     "Мира 1",
-			PhoneNumber: "+375291111111",
-			WorkingTime: "10:00-23:00",
-		},
-	}
+		got, err := NewClinic().Replace(1, replacement)
 
-	replacement := models.Clinic{
-		Address:     "Ленина 100",
-		PhoneNumber: "+375295555555",
-		WorkingTime: "09:00-21:00",
-	}
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got != replacement {
+			t.Errorf("got %+v, want %+v", got, replacement)
+		}
+		if clinicsData[1] != replacement {
+			t.Errorf("storage = %+v, want %+v (old fields must be cleared)", clinicsData[1], replacement)
+		}
+		if len(clinicsData) != 1 {
+			t.Errorf("storage size = %d, want 1", len(clinicsData))
+		}
+	})
 
-	service := NewClinic()
+	// Этот тест падает на текущем коде: Replace не проверяет, что клиника существует,
+	// и молча создаёт новую запись. У собак Replace возвращает ошибку.
+	t.Run("not found", func(t *testing.T) {
+		resetClinics(t, map[int]models.Clinic{1: testClinicA})
 
-	data, err := service.Replace(1, replacement)
+		_, err := NewClinic().Replace(99, testClinicB)
 
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if data != replacement {
-		t.Errorf(
-			"expected %+v, got %+v",
-			replacement,
-			data,
-		)
-	}
-
-	if clinicsData[1] != replacement {
-		t.Errorf(
-			"clinic was not replaced: %+v",
-			clinicsData[1],
-		)
-	}
-}
-
-// =========================
-// Replace - new clinic
-// =========================
-
-func TestClinic_Replace_NewClinic(t *testing.T) {
-	backupClinicData(t)
-
-	clinicsData = map[int]models.Clinic{}
-
-	newClinic := models.Clinic{
-		Address:     "Ленина 100",
-		PhoneNumber: "+375295555555",
-		WorkingTime: "09:00-21:00",
-	}
-
-	service := NewClinic()
-
-	data, err := service.Replace(10, newClinic)
-
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if data != newClinic {
-		t.Errorf(
-			"expected %+v, got %+v",
-			newClinic,
-			data,
-		)
-	}
-
-	if clinicsData[10] != newClinic {
-		t.Error("new clinic was not added")
-	}
+		if err == nil {
+			t.Error("expected error, got nil")
+		}
+		if _, ok := clinicsData[99]; ok {
+			t.Error("clinic 99 must not be created by Replace")
+		}
+	})
 }

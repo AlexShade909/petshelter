@@ -16,22 +16,23 @@ func (c clinic) FullInfo() (map[int]models.Clinic, error) {
 }
 
 func (c clinic) Info(clinicNumber int) (models.Clinic, error) {
-	clinic, ok := clinicsData[clinicNumber]
+	clinicInfo, ok := clinicsData[clinicNumber]
 	if !ok {
 		return models.Clinic{}, errors.New("clinic not found")
 	}
 
-	return clinic, nil
+	return clinicInfo, nil
 }
 
 func (c clinic) ListDogs(clinicNumber int) ([]string, error) {
-	var listDogs []string
-	if clinicNumber >= len(clinicsData) || clinicNumber < 0 {
+	listDogs := make([]string, 0)
+	cl, ok := clinicsData[clinicNumber]
+	if !ok {
 		return []string{}, errors.New("number not correct")
 	}
-	for i, v := range dogsData {
-		if v.Сlinic == clinicsData[clinicNumber] {
-			listDogs = append(listDogs, i)
+	for _, d := range dogsData {
+		if d.Сlinic == cl {
+			listDogs = append(listDogs, d.Nickname)
 		}
 	}
 	return listDogs, nil
@@ -53,30 +54,27 @@ func (c clinic) Delete(clinicNumber int) error {
 }
 
 func (c clinic) Update(clinicNumber int, patch models.ClinicPatch) (models.Clinic, error) {
-
 	cl, ok := clinicsData[clinicNumber]
 	if !ok {
 		return models.Clinic{}, errors.New("clinic not found")
 	}
-
 	if patch.Address != "" {
 		cl.Address = patch.Address
 	}
-
 	if patch.PhoneNumber != "" {
 		cl.PhoneNumber = patch.PhoneNumber
 	}
-
 	if patch.WorkingTime != "" {
 		cl.WorkingTime = patch.WorkingTime
 	}
-
 	clinicsData[clinicNumber] = cl
-
 	return cl, nil
 }
 
-func (c clinic) Replace(clinicNumber int, clinic models.Clinic) (models.Clinic, error) {
-	clinicsData[clinicNumber] = clinic
-	return clinic, nil
+func (c clinic) Replace(clinicNumber int, patch models.Clinic) (models.Clinic, error) {
+	if _, ok := clinicsData[clinicNumber]; !ok {
+		return models.Clinic{}, errors.New("patch not found")
+	}
+	clinicsData[clinicNumber] = patch
+	return patch, nil
 }

@@ -16,22 +16,22 @@ func (s shelter) FullInfo() (map[int]models.Shelter, error) {
 }
 
 func (s shelter) Info(shelterNumber int) (models.Shelter, error) {
-	//if shelterNumber >= len(sheltersData) && shelterNumber < 0 {
-	//	return models.Shelter{}, errors.New("number not correct")
-	//}
-	v := sheltersData[shelterNumber]
-
-	return v, nil
+	shelterInfo, ok := sheltersData[shelterNumber]
+	if !ok {
+		return models.Shelter{}, errors.New("sheler not found")
+	}
+	return shelterInfo, nil
 }
 
 func (s shelter) ListDogs(shelterNumber int) ([]string, error) {
-	var listDogs []string
-	if shelterNumber >= len(sheltersData) || shelterNumber < 0 {
+	listDogs := make([]string, 0)
+	sh, ok := sheltersData[shelterNumber]
+	if !ok {
 		return []string{}, errors.New("number not correct")
 	}
-	for i, v := range dogsData {
-		if v.Shelter == sheltersData[shelterNumber] {
-			listDogs = append(listDogs, i)
+	for _, d := range dogsData {
+		if d.Shelter == sh {
+			listDogs = append(listDogs, d.Nickname)
 		}
 	}
 	return listDogs, nil
@@ -44,6 +44,9 @@ func (s shelter) Create(shelterCreate models.Shelter) error {
 }
 
 func (s shelter) Delete(shelterNumber int) error {
+	if _, ok := sheltersData[shelterNumber]; !ok {
+		return errors.New("clinic not found")
+	}
 	delete(sheltersData, shelterNumber)
 	return nil
 }
@@ -69,6 +72,9 @@ func (s shelter) Update(shelterNumber int, patch models.ShelterPatch) (models.Sh
 }
 
 func (s shelter) Replace(shelterNumber int, patch models.Shelter) (models.Shelter, error) {
+	if _, ok := sheltersData[shelterNumber]; !ok {
+		return models.Shelter{}, errors.New("shelter not found")
+	}
 	sheltersData[shelterNumber] = patch
 	return sheltersData[shelterNumber], nil
 }

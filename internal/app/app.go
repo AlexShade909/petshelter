@@ -23,10 +23,10 @@ func RunPetshelter(ctx context.Context) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /dogs", dogController.NicknamesHandler)
 	mux.HandleFunc("GET /dogs/{dogID}", dogController.InfoHandler)
-	mux.HandleFunc("DELETE /dogs/{dogName}", dogController.DeleteHandler)
+	mux.HandleFunc("DELETE /dogs/{dogID}", dogController.DeleteHandler)
 	mux.HandleFunc("POST /dogs", dogController.CreateHandler)
-	mux.HandleFunc("PATCH /dogs", dogController.UpdateHandler)
-	mux.HandleFunc("PUT /dogs", dogController.ReplaceHandler)
+	mux.HandleFunc("PATCH /dogs/{dogID}", dogController.UpdateHandler)
+	mux.HandleFunc("PUT /dogs/{dogID}", dogController.ReplaceHandler)
 
 	mux.HandleFunc("GET /shelters", shelterController.FullInfoHandler)
 	mux.HandleFunc("GET /shelters/{NumberShelter}", shelterController.InfoHandler)

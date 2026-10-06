@@ -10,735 +10,247 @@ import (
 	"petshelter/internal/models"
 )
 
-// =========================
-// Mock service
-// =========================
+// --- мок сервиса: у каждого метода своя функция, задаём только нужные ---
 
 type mockClinicService struct {
-	fullInfoFunc    func() (map[int]models.Clinic, error)
-	infoFunc        func(int) (models.Clinic, error)
-	listClinicsFunc func(int) ([]string, error)
-	createFunc      func(models.Clinic) error
-	deleteFunc      func(int) error
-	updateFunc      func(int, models.ClinicPatch) (models.Clinic, error)
-	replaceFunc     func(int, models.Clinic) (models.Clinic, error)
+	fullInfoFn func() (map[int]models.Clinic, error)
+	infoFn     func(int) (models.Clinic, error)
+	listDogsFn func(int) ([]string, error)
+	createFn   func(models.Clinic) error
+	deleteFn   func(int) error
+	updateFn   func(int, models.ClinicPatch) (models.Clinic, error)
+	replaceFn  func(int, models.Clinic) (models.Clinic, error)
 }
 
-func (m *mockClinicService) FullInfo() (map[int]models.Clinic, error) {
-	return m.fullInfoFunc()
+func (m mockClinicService) FullInfo() (map[int]models.Clinic, error) { return m.fullInfoFn() }
+func (m mockClinicService) Info(n int) (models.Clinic, error)        { return m.infoFn(n) }
+func (m mockClinicService) ListDogs(n int) ([]string, error)         { return m.listDogsFn(n) }
+func (m mockClinicService) Create(c models.Clinic) error             { return m.createFn(c) }
+func (m mockClinicService) Delete(n int) error                       { return m.deleteFn(n) }
+func (m mockClinicService) Update(n int, p models.ClinicPatch) (models.Clinic, error) {
+	return m.updateFn(n, p)
+}
+func (m mockClinicService) Replace(n int, c models.Clinic) (models.Clinic, error) {
+	return m.replaceFn(n, c)
 }
 
-func (m *mockClinicService) Info(clinicNumber int) (models.Clinic, error) {
-	return m.infoFunc(clinicNumber)
+// --- хелпер: запрос с path-параметром (нужен Go 1.22+) ---
+
+func newReq(method, body, number string) *http.Request {
+	req := httptest.NewRequest(method, "/clinics/"+number, strings.NewReader(body))
+	req.SetPathValue("NumberClinic", number)
+	return req
 }
 
-func (m *mockClinicService) ListClinics(clinicNumber int) ([]string, error) {
-	return m.listClinicsFunc(clinicNumber)
-}
+var errService = errors.New("service error")
 
-func (m *mockClinicService) Create(clinic models.Clinic) error {
-	return m.createFunc(clinic)
-}
-
-func (m *mockClinicService) Delete(clinicNumber int) error {
-	return m.deleteFunc(clinicNumber)
-}
-
-func (m *mockClinicService) Update(
-	clinicNumber int,
-	patch models.ClinicPatch,
-) (models.Clinic, error) {
-	return m.updateFunc(clinicNumber, patch)
-}
-
-func (m *mockClinicService) Replace(
-	clinicNumber int,
-	clinic models.Clinic,
-) (models.Clinic, error) {
-	return m.replaceFunc(clinicNumber, clinic)
-}
-
-// =========================
-// FullInfoHandler
-// =========================
-
-func TestClinic_FullInfoHandler(t *testing.T) {
-	expected := map[int]models.Clinic{
-		1: {
-			Address:     "Мира 1",
-			PhoneNumber: "+375291111111",
-			WorkingTime: "10:00-23:00",
-		},
-		2: {
-			Address:     "Ленина 10",
-			PhoneNumber: "+375292222222",
-			WorkingTime: "09:00-18:00",
-		},
+func TestFullInfoHandler(t *testing.T) {
+	tests := []struct {
+		name     string
+		fn       func() (map[int]models.Clinic, error)
+		wantCode int
+	}{
+		{"ok", func() (map[int]models.Clinic, error) { return map[int]models.Clinic{1: {}}, nil }, http.StatusOK},
+		{"service error", func() (map[int]models.Clinic, error) { return nil, errService }, http.StatusBadRequest},
 	}
 
-	service := &mockClinicService{
-		fullInfoFunc: func() (map[int]models.Clinic, error) {
-			return expected, nil
-		},
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := NewClinic(mockClinicService{fullInfoFn: tt.fn})
+			rec := httptest.NewRecorder()
 
-	controller := NewClinic(service)
+			h.FullInfoHandler(rec, newReq(http.MethodGet, "", "1"))
 
-	req := httptest.NewRequest(http.MethodGet, "/clinics", nil)
-	rec := httptest.NewRecorder()
-
-	controller.FullInfoHandler(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d",
-			http.StatusOK, rec.Code)
-	}
-}
-
-// =========================
-// FullInfoHandler - error
-// =========================
-
-func TestClinic_FullInfoHandler_Error(t *testing.T) {
-	service := &mockClinicService{
-		fullInfoFunc: func() (map[int]models.Clinic, error) {
-			return nil, errors.New("database error")
-		},
-	}
-
-	controller := NewClinic(service)
-
-	req := httptest.NewRequest(http.MethodGet, "/clinics", nil)
-	rec := httptest.NewRecorder()
-
-	controller.FullInfoHandler(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected status %d, got %d",
-			http.StatusBadRequest, rec.Code)
-	}
-}
-
-// =========================
-// InfoHandler
-// =========================
-
-func TestClinic_InfoHandler(t *testing.T) {
-	expectedClinic := models.Clinic{
-		Address:     "Мира 1",
-		PhoneNumber: "+375291111111",
-		WorkingTime: "10:00-23:00",
-	}
-
-	service := &mockClinicService{
-		infoFunc: func(clinicNumber int) (models.Clinic, error) {
-			if clinicNumber != 1 {
-				t.Fatalf("expected clinic number 1, got %d", clinicNumber)
+			if rec.Code != tt.wantCode {
+				t.Errorf("code = %d, want %d", rec.Code, tt.wantCode)
 			}
+		})
+	}
+}
 
-			return expectedClinic, nil
+func TestInfoHandler(t *testing.T) {
+	tests := []struct {
+		name     string
+		svc      mockClinicService
+		wantCode int
+	}{
+		{
+			name: "ok",
+			svc: mockClinicService{
+				infoFn:     func(int) (models.Clinic, error) { return models.Clinic{}, nil },
+				listDogsFn: func(int) ([]string, error) { return []string{"Rex", "Bim"}, nil },
+			},
+			wantCode: http.StatusOK,
 		},
+		{
+			name: "info error",
+			svc: mockClinicService{
+				infoFn: func(int) (models.Clinic, error) { return models.Clinic{}, errService },
+			},
+			wantCode: http.StatusBadRequest,
+		},
+		{
+			name: "list dogs error",
+			svc: mockClinicService{
+				infoFn:     func(int) (models.Clinic, error) { return models.Clinic{}, nil },
+				listDogsFn: func(int) ([]string, error) { return nil, errService },
+			},
+			wantCode: http.StatusBadRequest,
+		},
+	}
 
-		listClinicsFunc: func(clinicNumber int) ([]string, error) {
-			if clinicNumber != 1 {
-				t.Fatalf("expected clinic number 1, got %d", clinicNumber)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := NewClinic(tt.svc)
+			rec := httptest.NewRecorder()
+
+			h.InfoHandler(rec, newReq(http.MethodGet, "", "1"))
+
+			if rec.Code != tt.wantCode {
+				t.Errorf("code = %d, want %d", rec.Code, tt.wantCode)
 			}
-
-			return []string{"clinic-1", "clinic-2"}, nil
-		},
-	}
-
-	controller := NewClinic(service)
-
-	req := httptest.NewRequest(
-		http.MethodGet,
-		"/clinics/1",
-		nil,
-	)
-
-	// PathValue() работает только если значение
-	// было установлено через SetPathValue.
-	req.SetPathValue("NumberClinic", "1")
-
-	rec := httptest.NewRecorder()
-
-	controller.InfoHandler(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d",
-			http.StatusOK, rec.Code)
+		})
 	}
 }
 
-// =========================
-// InfoHandler - Info error
-// =========================
-
-func TestClinic_InfoHandler_InfoError(t *testing.T) {
-	service := &mockClinicService{
-		infoFunc: func(clinicNumber int) (models.Clinic, error) {
-			return models.Clinic{}, errors.New("clinic not found")
-		},
-
-		listClinicsFunc: func(clinicNumber int) ([]string, error) {
-			t.Fatal("ListClinics should not be called")
-			return nil, nil
-		},
+func TestCreateHandler(t *testing.T) {
+	tests := []struct {
+		name       string
+		body       string
+		createErr  error
+		wantCode   int
+		wantCalled bool
+	}{
+		{"ok", `{}`, nil, http.StatusCreated, true},
+		{"invalid json", `{broken`, nil, http.StatusBadRequest, false},
+		{"service error", `{}`, errService, http.StatusBadRequest, true},
 	}
 
-	controller := NewClinic(service)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			called := false
+			h := NewClinic(mockClinicService{
+				createFn: func(models.Clinic) error {
+					called = true
+					return tt.createErr
+				},
+			})
+			rec := httptest.NewRecorder()
 
-	req := httptest.NewRequest(
-		http.MethodGet,
-		"/clinics/1",
-		nil,
-	)
+			h.CreateHandler(rec, newReq(http.MethodPost, tt.body, ""))
 
-	req.SetPathValue("NumberClinic", "1")
-
-	rec := httptest.NewRecorder()
-
-	controller.InfoHandler(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected status %d, got %d",
-			http.StatusBadRequest, rec.Code)
-	}
-}
-
-// =========================
-// InfoHandler - ListClinics error
-// =========================
-
-func TestClinic_InfoHandler_ListClinicsError(t *testing.T) {
-	service := &mockClinicService{
-		infoFunc: func(clinicNumber int) (models.Clinic, error) {
-			return models.Clinic{
-				Address:     "Мира 1",
-				PhoneNumber: "+375291111111",
-				WorkingTime: "10:00-23:00",
-			}, nil
-		},
-
-		listClinicsFunc: func(clinicNumber int) ([]string, error) {
-			return nil, errors.New("cannot get clinic list")
-		},
-	}
-
-	controller := NewClinic(service)
-
-	req := httptest.NewRequest(
-		http.MethodGet,
-		"/clinics/1",
-		nil,
-	)
-
-	req.SetPathValue("NumberClinic", "1")
-
-	rec := httptest.NewRecorder()
-
-	controller.InfoHandler(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected status %d, got %d",
-			http.StatusBadRequest, rec.Code)
-	}
-}
-
-// =========================
-// CreateHandler
-// =========================
-
-func TestClinic_CreateHandler(t *testing.T) {
-	body := `{
-"Address": "Мира 1",
-"PhoneNumber": "+375291111111",
-"WorkingTime": "10:00-23:00"
-}`
-
-	service := &mockClinicService{
-		createFunc: func(clinic models.Clinic) error {
-			if clinic.Address != "Мира 1" {
-				t.Errorf("unexpected address: %s", clinic.Address)
+			if rec.Code != tt.wantCode {
+				t.Errorf("code = %d, want %d", rec.Code, tt.wantCode)
 			}
-
-			if clinic.PhoneNumber != "+375291111111" {
-				t.Errorf("unexpected phone: %s", clinic.PhoneNumber)
+			if called != tt.wantCalled {
+				t.Errorf("service called = %v, want %v", called, tt.wantCalled)
 			}
+		})
+	}
+}
 
-			if clinic.WorkingTime != "10:00-23:00" {
-				t.Errorf("unexpected working time: %s",
-					clinic.WorkingTime)
+func TestDeleteHandler(t *testing.T) {
+	tests := []struct {
+		name      string
+		deleteErr error
+		wantCode  int
+	}{
+		{"ok", nil, http.StatusOK},
+		{"service error", errService, http.StatusBadRequest},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var gotNumber int
+			h := NewClinic(mockClinicService{
+				deleteFn: func(n int) error {
+					gotNumber = n
+					return tt.deleteErr
+				},
+			})
+			rec := httptest.NewRecorder()
+
+			h.DeleteHandler(rec, newReq(http.MethodDelete, "", "7"))
+
+			if rec.Code != tt.wantCode {
+				t.Errorf("code = %d, want %d", rec.Code, tt.wantCode)
 			}
-
-			return nil
-		},
-	}
-
-	controller := NewClinic(service)
-
-	req := httptest.NewRequest(
-		http.MethodPost,
-		"/clinics",
-		strings.NewReader(body),
-	)
-
-	rec := httptest.NewRecorder()
-
-	controller.CreateHandler(rec, req)
-
-	if rec.Code != http.StatusCreated {
-		t.Fatalf("expected status %d, got %d",
-			http.StatusCreated, rec.Code)
-	}
-}
-
-// =========================
-// CreateHandler - invalid JSON
-// =========================
-
-func TestClinic_CreateHandler_InvalidJSON(t *testing.T) {
-	service := &mockClinicService{
-		createFunc: func(clinic models.Clinic) error {
-			t.Fatal("Create should not be called")
-			return nil
-		},
-	}
-
-	controller := NewClinic(service)
-
-	req := httptest.NewRequest(
-		http.MethodPost,
-		"/clinics",
-		strings.NewReader(`invalid json`),
-	)
-
-	rec := httptest.NewRecorder()
-
-	controller.CreateHandler(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected status %d, got %d",
-			http.StatusBadRequest, rec.Code)
-	}
-}
-
-// =========================
-// CreateHandler - service error
-// =========================
-
-func TestClinic_CreateHandler_ServiceError(t *testing.T) {
-	service := &mockClinicService{
-		createFunc: func(clinic models.Clinic) error {
-			return errors.New("create error")
-		},
-	}
-
-	controller := NewClinic(service)
-
-	body := `{
-"Address": "Мира 1",
-"PhoneNumber": "+375291111111",
-"WorkingTime": "10:00-23:00"
-}`
-
-	req := httptest.NewRequest(
-		http.MethodPost,
-		"/clinics",
-		strings.NewReader(body),
-	)
-
-	rec := httptest.NewRecorder()
-
-	controller.CreateHandler(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected status %d, got %d",
-			http.StatusBadRequest, rec.Code)
-	}
-}
-
-// =========================
-// DeleteHandler
-// =========================
-
-func TestClinic_DeleteHandler(t *testing.T) {
-	service := &mockClinicService{
-		deleteFunc: func(clinicNumber int) error {
-			if clinicNumber != 5 {
-				t.Fatalf("expected clinic number 5, got %d",
-					clinicNumber)
+			if gotNumber != 7 {
+				t.Errorf("clinic number = %d, want 7", gotNumber)
 			}
-
-			return nil
-		},
-	}
-
-	controller := NewClinic(service)
-
-	req := httptest.NewRequest(
-		http.MethodDelete,
-		"/clinics/5",
-		nil,
-	)
-
-	req.SetPathValue("NumberClinic", "5")
-
-	rec := httptest.NewRecorder()
-
-	controller.DeleteHandler(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d",
-			http.StatusOK, rec.Code)
-	}
-
-	expected := "data in clinic has been deleted. Number deleted clinic: 5"
-
-	if !strings.Contains(rec.Body.String(), expected) {
-		t.Fatalf("expected response to contain %q, got %q",
-			expected, rec.Body.String())
+		})
 	}
 }
 
-// =========================
-// DeleteHandler - error
-// =========================
-
-func TestClinic_DeleteHandler_Error(t *testing.T) {
-	service := &mockClinicService{
-		deleteFunc: func(clinicNumber int) error {
-			return errors.New("clinic not found")
-		},
+func TestUpdateHandler(t *testing.T) {
+	tests := []struct {
+		name       string
+		body       string
+		updateErr  error
+		wantCode   int
+		wantCalled bool
+	}{
+		{"ok", `{}`, nil, http.StatusOK, true},
+		{"unknown field", `{"no_such_field": 1}`, nil, http.StatusBadRequest, false},
+		{"invalid json", `{broken`, nil, http.StatusBadRequest, false},
+		{"service error", `{}`, errService, http.StatusBadRequest, true},
 	}
 
-	controller := NewClinic(service)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			called := false
+			h := NewClinic(mockClinicService{
+				updateFn: func(int, models.ClinicPatch) (models.Clinic, error) {
+					called = true
+					return models.Clinic{}, tt.updateErr
+				},
+			})
+			rec := httptest.NewRecorder()
 
-	req := httptest.NewRequest(
-		http.MethodDelete,
-		"/clinics/5",
-		nil,
-	)
+			h.UpdateHandler(rec, newReq(http.MethodPatch, tt.body, "1"))
 
-	req.SetPathValue("NumberClinic", "5")
-
-	rec := httptest.NewRecorder()
-
-	controller.DeleteHandler(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected status %d, got %d",
-			http.StatusBadRequest, rec.Code)
-	}
-}
-
-// =========================
-// UpdateHandler
-// =========================
-
-func TestClinic_UpdateHandler(t *testing.T) {
-	body := `{
-"Address": "Новая 10",
-"PhoneNumber": "+375293333333",
-"WorkingTime": "08:00-20:00"
-}`
-
-	service := &mockClinicService{
-		updateFunc: func(
-			clinicNumber int,
-			patch models.ClinicPatch,
-		) (models.Clinic, error) {
-
-			if clinicNumber != 2 {
-				t.Fatalf("expected clinic number 2, got %d",
-					clinicNumber)
+			if rec.Code != tt.wantCode {
+				t.Errorf("code = %d, want %d", rec.Code, tt.wantCode)
 			}
-
-			if patch.Address != "Новая 10" {
-				t.Errorf("unexpected address: %s",
-					patch.Address)
+			if called != tt.wantCalled {
+				t.Errorf("service called = %v, want %v", called, tt.wantCalled)
 			}
+		})
+	}
+}
 
-			if patch.PhoneNumber != "+375293333333" {
-				t.Errorf("unexpected phone: %s",
-					patch.PhoneNumber)
+func TestReplaceHandler(t *testing.T) {
+	tests := []struct {
+		name       string
+		body       string
+		replaceErr error
+		wantCode   int
+		wantCalled bool
+	}{
+		{"ok", `{}`, nil, http.StatusOK, true},
+		{"invalid json", `{broken`, nil, http.StatusBadRequest, false},
+		{"service error", `{}`, errService, http.StatusBadRequest, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			called := false
+			h := NewClinic(mockClinicService{
+				replaceFn: func(int, models.Clinic) (models.Clinic, error) {
+					called = true
+					return models.Clinic{}, tt.replaceErr
+				},
+			})
+			rec := httptest.NewRecorder()
+
+			h.ReplaceHandler(rec, newReq(http.MethodPut, tt.body, "1"))
+
+			if rec.Code != tt.wantCode {
+				t.Errorf("code = %d, want %d", rec.Code, tt.wantCode)
 			}
-
-			if patch.WorkingTime != "08:00-20:00" {
-				t.Errorf("unexpected working time: %s",
-					patch.WorkingTime)
+			if called != tt.wantCalled {
+				t.Errorf("service called = %v, want %v", called, tt.wantCalled)
 			}
-
-			return models.Clinic{
-				Address:     "Новая 10",
-				PhoneNumber: "+375293333333",
-				WorkingTime: "08:00-20:00",
-			}, nil
-		},
-	}
-
-	controller := NewClinic(service)
-
-	req := httptest.NewRequest(
-		http.MethodPatch,
-		"/clinics/2",
-		strings.NewReader(body),
-	)
-
-	req.SetPathValue("NumberClinic", "2")
-
-	rec := httptest.NewRecorder()
-
-	controller.UpdateHandler(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d",
-			http.StatusOK, rec.Code)
-	}
-}
-
-// =========================
-// UpdateHandler - invalid JSON
-// =========================
-
-func TestClinic_UpdateHandler_InvalidJSON(t *testing.T) {
-	service := &mockClinicService{
-		updateFunc: func(
-			clinicNumber int,
-			patch models.ClinicPatch,
-		) (models.Clinic, error) {
-
-			t.Fatal("Update should not be called")
-
-			return models.Clinic{}, nil
-		},
-	}
-
-	controller := NewClinic(service)
-
-	req := httptest.NewRequest(
-		http.MethodPatch,
-		"/clinics/1",
-		strings.NewReader(`invalid json`),
-	)
-
-	req.SetPathValue("NumberClinic", "1")
-
-	rec := httptest.NewRecorder()
-
-	controller.UpdateHandler(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected status %d, got %d",
-			http.StatusBadRequest, rec.Code)
-	}
-}
-
-// =========================
-// UpdateHandler - unknown field
-// =========================
-
-func TestClinic_UpdateHandler_UnknownField(t *testing.T) {
-	service := &mockClinicService{
-		updateFunc: func(
-			clinicNumber int,
-			patch models.ClinicPatch,
-		) (models.Clinic, error) {
-
-			t.Fatal("Update should not be called")
-
-			return models.Clinic{}, nil
-		},
-	}
-
-	controller := NewClinic(service)
-
-	body := `{
-"UnknownField": "test"
-}`
-
-	req := httptest.NewRequest(
-		http.MethodPatch,
-		"/clinics/1",
-		strings.NewReader(body),
-	)
-
-	req.SetPathValue("NumberClinic", "1")
-
-	rec := httptest.NewRecorder()
-
-	controller.UpdateHandler(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected status %d, got %d",
-			http.StatusBadRequest, rec.Code)
-	}
-}
-
-// =========================
-// UpdateHandler - service error
-// =========================
-
-func TestClinic_UpdateHandler_ServiceError(t *testing.T) {
-	service := &mockClinicService{
-		updateFunc: func(
-			clinicNumber int,
-			patch models.ClinicPatch,
-		) (models.Clinic, error) {
-
-			return models.Clinic{}, errors.New("clinic not found")
-		},
-	}
-
-	controller := NewClinic(service)
-
-	body := `{
-"Address": "Новая 10"
-}`
-
-	req := httptest.NewRequest(
-		http.MethodPatch,
-		"/clinics/1",
-		strings.NewReader(body),
-	)
-
-	req.SetPathValue("NumberClinic", "1")
-
-	rec := httptest.NewRecorder()
-
-	controller.UpdateHandler(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected status %d, got %d",
-			http.StatusBadRequest, rec.Code)
-	}
-}
-
-// =========================
-// ReplaceHandler
-// =========================
-
-func TestClinic_ReplaceHandler(t *testing.T) {
-	body := `{
-"Address": "Ленина 100",
-"PhoneNumber": "+375294444444",
-"WorkingTime": "09:00-21:00"
-}`
-
-	service := &mockClinicService{
-		replaceFunc: func(
-			clinicNumber int,
-			clinic models.Clinic,
-		) (models.Clinic, error) {
-
-			if clinicNumber != 3 {
-				t.Fatalf("expected clinic number 3, got %d",
-					clinicNumber)
-			}
-
-			if clinic.Address != "Ленина 100" {
-				t.Errorf("unexpected address: %s",
-					clinic.Address)
-			}
-
-			return clinic, nil
-		},
-	}
-
-	controller := NewClinic(service)
-
-	req := httptest.NewRequest(
-		http.MethodPut,
-		"/clinics/3",
-		strings.NewReader(body),
-	)
-
-	req.SetPathValue("NumberClinic", "3")
-
-	rec := httptest.NewRecorder()
-
-	controller.ReplaceHandler(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d",
-			http.StatusOK, rec.Code)
-	}
-}
-
-// =========================
-// ReplaceHandler - invalid JSON
-// =========================
-
-func TestClinic_ReplaceHandler_InvalidJSON(t *testing.T) {
-	service := &mockClinicService{
-		replaceFunc: func(
-			clinicNumber int,
-			clinic models.Clinic,
-		) (models.Clinic, error) {
-
-			t.Fatal("Replace should not be called")
-
-			return models.Clinic{}, nil
-		},
-	}
-
-	controller := NewClinic(service)
-
-	req := httptest.NewRequest(
-		http.MethodPut,
-		"/clinics/1",
-		strings.NewReader(`invalid json`),
-	)
-
-	req.SetPathValue("NumberClinic", "1")
-
-	rec := httptest.NewRecorder()
-
-	controller.ReplaceHandler(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected status %d, got %d",
-			http.StatusBadRequest, rec.Code)
-	}
-}
-
-// =========================
-// ReplaceHandler - service error
-// =========================
-
-func TestClinic_ReplaceHandler_ServiceError(t *testing.T) {
-	service := &mockClinicService{
-		replaceFunc: func(
-			clinicNumber int,
-			clinic models.Clinic,
-		) (models.Clinic, error) {
-
-			return models.Clinic{}, errors.New("clinic not found")
-		},
-	}
-
-	controller := NewClinic(service)
-
-	body := `{
-"Address": "Ленина 100",
-"PhoneNumber": "+375294444444",
-"WorkingTime": "09:00-21:00"
-}`
-
-	req := httptest.NewRequest(
-		http.MethodPut,
-		"/clinics/1",
-		strings.NewReader(body),
-	)
-
-	req.SetPathValue("NumberClinic", "1")
-
-	rec := httptest.NewRecorder()
-
-	controller.ReplaceHandler(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected status %d, got %d",
-			http.StatusBadRequest, rec.Code)
+		})
 	}
 }

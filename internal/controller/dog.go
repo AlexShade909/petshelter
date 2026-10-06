@@ -4,15 +4,16 @@ import (
 	"encoding/json"
 	"net/http"
 	"petshelter/internal/models"
+	"strconv"
 )
 
 type DogService interface {
 	ListNicknames() []string
 	Info(ID int) (models.Dog, error)
-	Delete(nickname string) error
-	Create(dog models.Dog) error
-	Update(dogUpdateFields models.Dog) (models.Dog, error)
-	Replace(dogReplaceFields models.Dog) (models.Dog, error)
+	Delete(ID int) (error, string)
+	Create(dog models.Dog) (error, models.Dog)
+	Update(ID int, dogUpdateFields models.Dog) (models.Dog, error)
+	Replace(ID int, dogReplaceFields models.Dog) (models.Dog, error)
 }
 
 type dog struct {
@@ -28,7 +29,11 @@ func (d dog) NicknamesHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (d dog) InfoHandler(w http.ResponseWriter, r *http.Request) {
-	dogID := r.PathValue("dogID")
+	dogID, err := strconv.Atoi(r.PathValue("dogID"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	dogInfo, err := d.dogService.Info(dogID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -38,13 +43,17 @@ func (d dog) InfoHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (d dog) DeleteHandler(w http.ResponseWriter, r *http.Request) {
-	dogName := r.PathValue("dogName")
-	err := d.dogService.Delete(dogName)
+	dogID, err := strconv.Atoi(r.PathValue("dogID"))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	WriteJSON(w, http.StatusOK, "dog Deleted. His name: "+dogName)
+	err, nickname := d.dogService.Delete(dogID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	WriteJSON(w, http.StatusOK, "dog Deleted: "+nickname)
 }
 
 func (d dog) CreateHandler(w http.ResponseWriter, r *http.Request) {
@@ -57,16 +66,23 @@ func (d dog) CreateHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "empty nickname", http.StatusBadRequest)
 		return
 	}
-	err := d.dogService.Create(dogCreate)
+	err, dogCreated := d.dogService.Create(dogCreate)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	WriteJSON(w, http.StatusOK, dogCreate)
+	WriteJSON(w, http.StatusOK, dogCreated)
 }
 
 func (d dog) UpdateHandler(w http.ResponseWriter, r *http.Request) {
 	var dogUpdateFields models.Dog
+
+	dogID, err := strconv.Atoi(r.PathValue("dogID"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	if err := json.NewDecoder(r.Body).Decode(&dogUpdateFields); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
@@ -75,7 +91,7 @@ func (d dog) UpdateHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "nickname is empty", http.StatusBadRequest)
 		return
 	}
-	dogUpdated, err := d.dogService.Update(dogUpdateFields)
+	dogUpdated, err := d.dogService.Update(dogID, dogUpdateFields)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -85,6 +101,11 @@ func (d dog) UpdateHandler(w http.ResponseWriter, r *http.Request) {
 
 func (d dog) ReplaceHandler(w http.ResponseWriter, r *http.Request) {
 	var dogReplaceFields models.Dog
+	dogID, err := strconv.Atoi(r.PathValue("dogID"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	if err := json.NewDecoder(r.Body).Decode(&dogReplaceFields); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
@@ -93,7 +114,7 @@ func (d dog) ReplaceHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "nickname is empty", http.StatusBadRequest)
 		return
 	}
-	dogResp, err := d.dogService.Replace(dogReplaceFields)
+	dogResp, err := d.dogService.Replace(dogID, dogReplaceFields)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

@@ -1,577 +1,343 @@
 package service
 
 import (
+	"reflect"
+	"sort"
 	"testing"
 
 	"petshelter/internal/models"
 )
 
-// =====================================================
-// Helpers
-// =====================================================
-
-// Сохраняем исходное состояние глобальных данных,
-// чтобы один тест не влиял на другой.
-func backupShelterData(t *testing.T) func() {
+// resetShelters подменяет глобальную мапу приютов и счётчик ID известными данными,
+// а после теста восстанавливает исходные значения.
+// resetDogs находится в dog_test.go (тот же пакет).
+func resetShelters(t *testing.T, data map[int]models.Shelter) {
 	t.Helper()
-
-	oldSheltersData := sheltersData
-	oldDogsData := dogsData
-	oldNextShelterID := nextShelterID
-
+	origData, origNext := sheltersData, nextShelterID
+	sheltersData = data
+	nextShelterID = len(data)
 	t.Cleanup(func() {
-		sheltersData = oldSheltersData
-		dogsData = oldDogsData
-		nextShelterID = oldNextShelterID
+		sheltersData, nextShelterID = origData, origNext
 	})
-
-	return func() {}
 }
 
-// =====================================================
-// FullInfo
-// =====================================================
+var (
+	testShelterA = models.Shelter{Address: "Шелтер 0", PhoneNumber: "+111", WorkingTime: "10:00-22:00"}
+	testShelterB = models.Shelter{Address: "Шелтер 1", PhoneNumber: "+222", WorkingTime: "11:00-21:00"}
+	testShelterC = models.Shelter{Address: "Шелтер 2", PhoneNumber: "+333", WorkingTime: "08:00-16:00"}
+)
 
 func TestShelter_FullInfo(t *testing.T) {
-	backupShelterData(t)
+	resetShelters(t, map[int]models.Shelter{0: testShelterA, 1: testShelterB})
 
-	sheltersData = map[int]models.Shelter{
-		1: {
-			Address:     "Mira 1",
-			PhoneNumber: "1",
-			WorkingTime: "10:00-18:00",
-		},
-		2: {
-			Address:     "Lenina 10",
-			PhoneNumber: "2",
-			WorkingTime: "09:00-17:00",
-		},
-	}
-
-	service := NewShelter()
-
-	result, err := service.FullInfo()
+	got, err := NewShelter().FullInfo()
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-
-	if len(result) != 2 {
-		t.Fatalf("expected 2 shelters, got %d", len(result))
-	}
-
-	if result[1].Address != "Mira 1" {
-		t.Fatalf(
-			"expected address %q, got %q",
-			"Mira 1",
-			result[1].Address,
-		)
-	}
-
-	if result[2].Address != "Lenina 10" {
-		t.Fatalf(
-			"expected address %q, got %q",
-			"Lenina 10",
-			result[2].Address,
-		)
+	want := map[int]models.Shelter{0: testShelterA, 1: testShelterB}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %+v, want %+v", got, want)
 	}
 }
-
-// =====================================================
-// Info
-// =====================================================
 
 func TestShelter_Info(t *testing.T) {
-	backupShelterData(t)
+	resetShelters(t, map[int]models.Shelter{0: testShelterA, 1: testShelterB})
 
-	expected := models.Shelter{
-		Address:     "Mira 1",
-		PhoneNumber: "1",
-		WorkingTime: "10:00-18:00",
-	}
+	t.Run("found", func(t *testing.T) {
+		got, err := NewShelter().Info(1)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got != testShelterB {
+			t.Errorf("got %+v, want %+v", got, testShelterB)
+		}
+	})
 
-	sheltersData = map[int]models.Shelter{
-		1: expected,
-	}
+	// Этот тест падает на текущем коде: Info не проверяет наличие ключа
+	// и возвращает пустой Shelter{} без ошибки.
+	t.Run("not found", func(t *testing.T) {
+		got, err := NewShelter().Info(99)
+		if err == nil {
+			t.Errorf("expected error, got nil (returned %+v)", got)
+		}
+	})
 
-	service := NewShelter()
-
-	result, err := service.Info(1)
-
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if result != expected {
-		t.Fatalf(
-			"expected %+v, got %+v",
-			expected,
-			result,
-		)
-	}
+	t.Run("negative number", func(t *testing.T) {
+		if _, err := NewShelter().Info(-1); err == nil {
+			t.Error("expected error, got nil")
+		}
+	})
 }
-
-func TestShelter_Info_NotFound(t *testing.T) {
-	backupShelterData(t)
-
-	sheltersData = map[int]models.Shelter{}
-
-	service := NewShelter()
-
-	result, err := service.Info(999)
-
-	if err != nil {
-		t.Fatalf(
-			"unexpected error: %v",
-			err,
-		)
-	}
-
-	// В текущей реализации Info не возвращает ошибку,
-	// если такого ключа нет. Возвращается zero-value Shelter.
-	if result != (models.Shelter{}) {
-		t.Fatalf(
-			"expected empty shelter, got %+v",
-			result,
-		)
-	}
-}
-
-// =====================================================
-// ListDogs
-// =====================================================
 
 func TestShelter_ListDogs(t *testing.T) {
-	backupShelterData(t)
-
-	shelter1 := models.Shelter{
-		Address:     "Mira 1",
-		PhoneNumber: "1",
-		WorkingTime: "10:00-18:00",
+	dogs := map[int]models.Dog{
+		0: {ID: 0, Nickname: "Rex", Shelter: testShelterA},
+		1: {ID: 1, Nickname: "Bim", Shelter: testShelterA},
+		2: {ID: 2, Nickname: "Max", Shelter: testShelterB},
 	}
 
-	shelter2 := models.Shelter{
-		Address:     "Lenina 10",
-		PhoneNumber: "2",
-		WorkingTime: "09:00-17:00",
-	}
+	t.Run("returns only dogs of the shelter", func(t *testing.T) {
+		resetShelters(t, map[int]models.Shelter{0: testShelterA, 1: testShelterB})
+		resetDogs(t, dogs)
 
-	sheltersData = map[int]models.Shelter{
-		1: shelter1,
-		2: shelter2,
-	}
+		got, err := NewShelter().ListDogs(0)
 
-	dogsData = map[string]models.Dog{
-		"Bobik": {
-			Shelter: shelter1,
-		},
-		"Sharik": {
-			Shelter: shelter1,
-		},
-		"Rex": {
-			Shelter: shelter2,
-		},
-	}
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		sort.Strings(got) // порядок обхода мапы случайный
+		want := []string{"Bim", "Rex"}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("got %v, want %v", got, want)
+		}
+	})
 
-	service := NewShelter()
+	t.Run("shelter without dogs", func(t *testing.T) {
+		resetShelters(t, map[int]models.Shelter{0: testShelterA, 1: testShelterB, 2: testShelterC})
+		resetDogs(t, dogs)
 
-	result, err := service.ListDogs(1)
+		got, err := NewShelter().ListDogs(2)
 
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(got) != 0 {
+			t.Errorf("got %v, want no dogs", got)
+		}
+	})
 
-	if len(result) != 2 {
-		t.Fatalf(
-			"expected 2 dogs, got %d",
-			len(result),
-		)
-	}
+	t.Run("invalid number", func(t *testing.T) {
+		resetShelters(t, map[int]models.Shelter{0: testShelterA, 1: testShelterB})
+		resetDogs(t, dogs)
 
-	// Проверяем, что именно нужные собаки попали
-	// в результат.
-	found := map[string]bool{}
-
-	for _, name := range result {
-		found[name] = true
-	}
-
-	if !found["Bobik"] {
-		t.Error("expected Bobik in result")
-	}
-
-	if !found["Sharik"] {
-		t.Error("expected Sharik in result")
-	}
-
-	if found["Rex"] {
-		t.Error("Rex should not be in result")
-	}
-}
-
-func TestShelter_ListDogs_InvalidNumber(t *testing.T) {
-	backupShelterData(t)
-
-	sheltersData = map[int]models.Shelter{
-		0: {},
-		1: {},
-	}
-
-	service := NewShelter()
-
-	tests := []struct {
-		name   string
-		number int
-	}{
-		{
-			name:   "negative number",
-			number: -1,
-		},
-		{
-			name:   "number greater than length",
-			number: 2,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := service.ListDogs(tt.number)
-
-			if err == nil {
-				t.Fatal("expected error, got nil")
+		for _, n := range []int{-1, 2, 99} {
+			if _, err := NewShelter().ListDogs(n); err == nil {
+				t.Errorf("number %d: expected error, got nil", n)
 			}
+		}
+	})
 
-			if err.Error() != "number not correct" {
-				t.Fatalf(
-					"expected %q, got %q",
-					"number not correct",
-					err.Error(),
-				)
-			}
-
-			if len(result) != 0 {
-				t.Fatalf(
-					"expected empty result, got %v",
-					result,
-				)
-			}
+	// Падает на текущем коде: проверка shelterNumber >= len(sheltersData)
+	// ломается после удаления приюта, ключи перестают быть 0..len-1.
+	t.Run("existing shelter works after another was deleted", func(t *testing.T) {
+		resetShelters(t, map[int]models.Shelter{0: testShelterA, 1: testShelterB, 2: testShelterC})
+		resetDogs(t, map[int]models.Dog{
+			0: {ID: 0, Nickname: "Rex", Shelter: testShelterC},
 		})
-	}
-}
+		svc := NewShelter()
+		if err := svc.Delete(1); err != nil { // размер мапы 2, а ключ 2 существует
+			t.Fatalf("delete: %v", err)
+		}
 
-// =====================================================
-// Create
-// =====================================================
+		got, err := svc.ListDogs(2)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !reflect.DeepEqual(got, []string{"Rex"}) {
+			t.Errorf("got %v, want [Rex]", got)
+		}
+	})
+
+	// Падает на текущем коде: номер удалённого приюта меньше len(), проверка проходит,
+	// и для пустого Shelter{} находятся «собаки без приюта».
+	t.Run("deleted shelter number returns error", func(t *testing.T) {
+		resetShelters(t, map[int]models.Shelter{0: testShelterA, 2: testShelterC}) // ключа 1 нет
+		resetDogs(t, map[int]models.Dog{
+			0: {ID: 0, Nickname: "Stray"}, // без приюта
+		})
+
+		got, err := NewShelter().ListDogs(1)
+
+		if err == nil {
+			t.Errorf("expected error for missing shelter, got %v", got)
+		}
+	})
+}
 
 func TestShelter_Create(t *testing.T) {
-	backupShelterData(t)
+	t.Run("stores shelter", func(t *testing.T) {
+		resetShelters(t, map[int]models.Shelter{0: testShelterA})
 
-	sheltersData = map[int]models.Shelter{}
+		err := NewShelter().Create(testShelterB)
 
-	nextShelterID = 1
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(sheltersData) != 2 {
+			t.Fatalf("storage size = %d, want 2", len(sheltersData))
+		}
+		if sheltersData[0] != testShelterA {
+			t.Errorf("existing shelter changed: %+v", sheltersData[0])
+		}
+		if sheltersData[1] != testShelterB {
+			t.Errorf("new shelter = %+v, want %+v", sheltersData[1], testShelterB)
+		}
+	})
 
-	service := NewShelter()
+	t.Run("does not overwrite existing after delete", func(t *testing.T) {
+		resetShelters(t, map[int]models.Shelter{0: testShelterA, 1: testShelterB, 2: testShelterC})
+		svc := NewShelter()
+		if err := svc.Delete(0); err != nil {
+			t.Fatalf("delete: %v", err)
+		}
 
-	newShelter := models.Shelter{
-		Address:     "Mira 1",
-		PhoneNumber: "1",
-		WorkingTime: "10:00-18:00",
-	}
+		if err := svc.Create(models.Shelter{Address: "New"}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
-	err := service.Create(newShelter)
+		if sheltersData[2] != testShelterC {
+			t.Errorf("shelter 2 overwritten: %+v", sheltersData[2])
+		}
+		if len(sheltersData) != 3 {
+			t.Errorf("storage size = %d, want 3", len(sheltersData))
+		}
+	})
 
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	t.Run("each create gets its own id", func(t *testing.T) {
+		resetShelters(t, map[int]models.Shelter{})
+		svc := NewShelter()
 
-	result, ok := sheltersData[1]
+		_ = svc.Create(testShelterA)
+		_ = svc.Create(testShelterB)
 
-	if !ok {
-		t.Fatal("shelter was not created")
-	}
-
-	if result != newShelter {
-		t.Fatalf(
-			"expected %+v, got %+v",
-			newShelter,
-			result,
-		)
-	}
-
-	if nextShelterID != 2 {
-		t.Fatalf(
-			"expected nextShelterID 2, got %d",
-			nextShelterID,
-		)
-	}
+		if len(sheltersData) != 2 {
+			t.Errorf("storage size = %d, want 2", len(sheltersData))
+		}
+	})
 }
-
-// =====================================================
-// Delete
-// =====================================================
 
 func TestShelter_Delete(t *testing.T) {
-	backupShelterData(t)
+	t.Run("ok", func(t *testing.T) {
+		resetShelters(t, map[int]models.Shelter{0: testShelterA, 1: testShelterB})
 
-	sheltersData = map[int]models.Shelter{
-		1: {
-			Address: "Mira 1",
-		},
-		2: {
-			Address: "Lenina 10",
-		},
-	}
+		err := NewShelter().Delete(0)
 
-	service := NewShelter()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if _, ok := sheltersData[0]; ok {
+			t.Error("shelter 0 still in storage")
+		}
+		if _, ok := sheltersData[1]; !ok {
+			t.Error("shelter 1 was removed by mistake")
+		}
+	})
 
-	err := service.Delete(1)
+	// Падает на текущем коде: Delete всегда возвращает nil,
+	// даже если приюта нет (у клиник и собак в этом случае ошибка).
+	t.Run("not found", func(t *testing.T) {
+		resetShelters(t, map[int]models.Shelter{0: testShelterA})
 
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+		err := NewShelter().Delete(99)
 
-	if _, ok := sheltersData[1]; ok {
-		t.Fatal("shelter 1 was not deleted")
-	}
-
-	if _, ok := sheltersData[2]; !ok {
-		t.Fatal("shelter 2 should still exist")
-	}
+		if err == nil {
+			t.Error("expected error, got nil")
+		}
+		if len(sheltersData) != 1 {
+			t.Errorf("storage size = %d, want 1", len(sheltersData))
+		}
+	})
 }
-
-func TestShelter_Delete_NotFound(t *testing.T) {
-	backupShelterData(t)
-
-	sheltersData = map[int]models.Shelter{
-		1: {},
-	}
-
-	service := NewShelter()
-
-	// Текущая реализация Delete не проверяет,
-	// существует ли shelter.
-	err := service.Delete(999)
-
-	if err != nil {
-		t.Fatalf(
-			"expected nil error, got %v",
-			err,
-		)
-	}
-}
-
-// =====================================================
-// Update
-// =====================================================
 
 func TestShelter_Update(t *testing.T) {
-	backupShelterData(t)
+	t.Run("partial update keeps other fields", func(t *testing.T) {
+		resetShelters(t, map[int]models.Shelter{1: testShelterA})
 
-	sheltersData = map[int]models.Shelter{
-		1: {
-			Address:     "Old address",
-			PhoneNumber: "1",
-			WorkingTime: "10:00-18:00",
-		},
-	}
+		got, err := NewShelter().Update(1, models.ShelterPatch{PhoneNumber: "+999"})
 
-	service := NewShelter()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		want := models.Shelter{
+			Address:     testShelterA.Address,
+			PhoneNumber: "+999",
+			WorkingTime: testShelterA.WorkingTime,
+		}
+		if got != want {
+			t.Errorf("got %+v, want %+v", got, want)
+		}
+		if sheltersData[1] != want {
+			t.Errorf("storage %+v differs from returned %+v", sheltersData[1], want)
+		}
+	})
 
-	patch := models.ShelterPatch{
-		Address:     "New address",
-		PhoneNumber: "10",
-		WorkingTime: "09:00-20:00",
-	}
+	t.Run("updates all fields", func(t *testing.T) {
+		resetShelters(t, map[int]models.Shelter{1: testShelterA})
+		patch := models.ShelterPatch{Address: "A2", PhoneNumber: "P2", WorkingTime: "W2"}
 
-	result, err := service.Update(1, patch)
+		got, err := NewShelter().Update(1, patch)
 
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		want := models.Shelter{Address: "A2", PhoneNumber: "P2", WorkingTime: "W2"}
+		if got != want {
+			t.Errorf("got %+v, want %+v", got, want)
+		}
+	})
 
-	if result.Address != "New address" {
-		t.Fatalf(
-			"expected address %q, got %q",
-			"New address",
-			result.Address,
-		)
-	}
+	t.Run("empty patch changes nothing", func(t *testing.T) {
+		resetShelters(t, map[int]models.Shelter{1: testShelterA})
 
-	if result.PhoneNumber != "10" {
-		t.Fatalf(
-			"expected number %q, got %q",
-			"10",
-			result.PhoneNumber,
-		)
-	}
+		got, err := NewShelter().Update(1, models.ShelterPatch{})
 
-	if result.WorkingTime != "09:00-20:00" {
-		t.Fatalf(
-			"expected working time %q, got %q",
-			"09:00-20:00",
-			result.WorkingTime,
-		)
-	}
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got != testShelterA {
+			t.Errorf("got %+v, want %+v", got, testShelterA)
+		}
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		resetShelters(t, map[int]models.Shelter{1: testShelterA})
+
+		_, err := NewShelter().Update(99, models.ShelterPatch{Address: "X"})
+
+		if err == nil {
+			t.Error("expected error, got nil")
+		}
+		if _, ok := sheltersData[99]; ok {
+			t.Error("shelter 99 must not be created by Update")
+		}
+	})
 }
-
-func TestShelter_Update_PartialPatch(t *testing.T) {
-	backupShelterData(t)
-
-	sheltersData = map[int]models.Shelter{
-		1: {
-			Address:     "Old address",
-			PhoneNumber: "1",
-			WorkingTime: "10:00-18:00",
-		},
-	}
-
-	service := NewShelter()
-
-	patch := models.ShelterPatch{
-		Address: "New address",
-	}
-
-	result, err := service.Update(1, patch)
-
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if result.Address != "New address" {
-		t.Fatalf(
-			"expected address %q, got %q",
-			"New address",
-			result.Address,
-		)
-	}
-
-	// Эти поля должны остаться неизменными.
-	if result.PhoneNumber != "1" {
-		t.Fatalf(
-			"expected number %q, got %q",
-			"1",
-			result.PhoneNumber,
-		)
-	}
-
-	if result.WorkingTime != "10:00-18:00" {
-		t.Fatalf(
-			"expected working time %q, got %q",
-			"10:00-18:00",
-			result.WorkingTime,
-		)
-	}
-}
-
-func TestShelter_Update_NotFound(t *testing.T) {
-	backupShelterData(t)
-
-	sheltersData = map[int]models.Shelter{}
-
-	service := NewShelter()
-
-	patch := models.ShelterPatch{
-		Address: "New address",
-	}
-
-	result, err := service.Update(999, patch)
-
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-
-	if err.Error() != "shelter not found" {
-		t.Fatalf(
-			"expected %q, got %q",
-			"shelter not found",
-			err.Error(),
-		)
-	}
-
-	if result != (models.Shelter{}) {
-		t.Fatalf(
-			"expected empty shelter, got %+v",
-			result,
-		)
-	}
-}
-
-// =====================================================
-// Replace
-// =====================================================
 
 func TestShelter_Replace(t *testing.T) {
-	backupShelterData(t)
+	t.Run("replaces fully", func(t *testing.T) {
+		resetShelters(t, map[int]models.Shelter{1: testShelterA})
+		replacement := models.Shelter{Address: "Only address"}
 
-	sheltersData = map[int]models.Shelter{
-		1: {
-			Address:     "Old address",
-			PhoneNumber: "1",
-			WorkingTime: "10:00-18:00",
-		},
-	}
+		got, err := NewShelter().Replace(1, replacement)
 
-	service := NewShelter()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got != replacement {
+			t.Errorf("got %+v, want %+v", got, replacement)
+		}
+		if sheltersData[1] != replacement {
+			t.Errorf("storage = %+v, want %+v (old fields must be cleared)", sheltersData[1], replacement)
+		}
+		if len(sheltersData) != 1 {
+			t.Errorf("storage size = %d, want 1", len(sheltersData))
+		}
+	})
 
-	newShelter := models.Shelter{
-		Address:     "New address",
-		PhoneNumber: "2",
-		WorkingTime: "09:00-20:00",
-	}
+	// Падает на текущем коде: Replace не проверяет, что приют существует,
+	// и молча создаёт новую запись с произвольным ключом.
+	t.Run("not found", func(t *testing.T) {
+		resetShelters(t, map[int]models.Shelter{1: testShelterA})
 
-	result, err := service.Replace(1, newShelter)
+		_, err := NewShelter().Replace(99, testShelterB)
 
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if result != newShelter {
-		t.Fatalf(
-			"expected %+v, got %+v",
-			newShelter,
-			result,
-		)
-	}
-
-	if sheltersData[1] != newShelter {
-		t.Fatalf(
-			"data was not replaced: got %+v",
-			sheltersData[1],
-		)
-	}
-}
-
-func TestShelter_Replace_NewShelter(t *testing.T) {
-	backupShelterData(t)
-
-	sheltersData = map[int]models.Shelter{}
-
-	service := NewShelter()
-
-	newShelter := models.Shelter{
-		Address:     "New address",
-		PhoneNumber: "1",
-		WorkingTime: "10:00-20:00",
-	}
-
-	result, err := service.Replace(5, newShelter)
-
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if result != newShelter {
-		t.Fatalf(
-			"expected %+v, got %+v",
-			newShelter,
-			result,
-		)
-	}
-
-	if sheltersData[5] != newShelter {
-		t.Fatalf(
-			"expected shelter at key 5, got %+v",
-			sheltersData[5],
-		)
-	}
+		if err == nil {
+			t.Error("expected error, got nil")
+		}
+		if _, ok := sheltersData[99]; ok {
+			t.Error("shelter 99 must not be created by Replace")
+		}
+	})
 }

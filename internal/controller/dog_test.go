@@ -1,487 +1,287 @@
 package controller
 
 import (
-	"bytes"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
-	"reflect"
 	"strings"
 	"testing"
 
 	"petshelter/internal/models"
 )
 
-// ---------- mock ----------
-
 type mockDogService struct {
 	listNicknamesFn func() []string
-	infoFn          func(nickname string) (models.Dog, error)
-	deleteFn        func(nickname string) error
-	createFn        func(dog models.Dog) error
-	updateFn        func(dog models.Dog) (models.Dog, error)
-	replaceFn       func(dog models.Dog) (models.Dog, error)
-
-	calls int // сколько раз вызывали любой метод сервиса
+	infoFn          func(int) (models.Dog, error)
+	deleteFn        func(int) (error, string)
+	createFn        func(models.Dog) (error, models.Dog)
+	updateFn        func(int, models.Dog) (models.Dog, error)
+	replaceFn       func(int, models.Dog) (models.Dog, error)
 }
 
-func (m *mockDogService) ListNicknames() []string {
-	m.calls++
-	return m.listNicknamesFn()
+func (m mockDogService) ListNicknames() []string                 { return m.listNicknamesFn() }
+func (m mockDogService) Info(id int) (models.Dog, error)         { return m.infoFn(id) }
+func (m mockDogService) Delete(id int) (error, string)           { return m.deleteFn(id) }
+func (m mockDogService) Create(d models.Dog) (error, models.Dog) { return m.createFn(d) }
+func (m mockDogService) Update(id int, d models.Dog) (models.Dog, error) {
+	return m.updateFn(id, d)
+}
+func (m mockDogService) Replace(id int, d models.Dog) (models.Dog, error) {
+	return m.replaceFn(id, d)
 }
 
-func (m *mockDogService) Info(nickname string) (models.Dog, error) {
-	m.calls++
-	return m.infoFn(nickname)
-}
-
-func (m *mockDogService) Delete(nickname string) error {
-	m.calls++
-	return m.deleteFn(nickname)
-}
-
-func (m *mockDogService) Create(dog models.Dog) error {
-	m.calls++
-	return m.createFn(dog)
-}
-
-func (m *mockDogService) Update(dog models.Dog) (models.Dog, error) {
-	m.calls++
-	return m.updateFn(dog)
-}
-
-func (m *mockDogService) Replace(dog models.Dog) (models.Dog, error) {
-	m.calls++
-	return m.replaceFn(dog)
-}
-
-// ---------- helpers ----------
-
-func mustJSON(t *testing.T, v any) *bytes.Reader {
-	t.Helper()
-	b, err := json.Marshal(v)
-	if err != nil {
-		t.Fatalf("marshal: %v", err)
-	}
-	return bytes.NewReader(b)
-}
-
-func newReqWithName(method, name string, body *bytes.Reader) *http.Request {
-	var req *http.Request
-	if body != nil {
-		req = httptest.NewRequest(method, "/dogs/"+name, body)
-	} else {
-		req = httptest.NewRequest(method, "/dogs/"+name, nil)
-	}
-	req.SetPathValue("dogName", name)
+// path-параметр здесь называется dogID (в тестах клиник был NumberClinic)
+func newDogReq(method, body, id string) *http.Request {
+	req := httptest.NewRequest(method, "/dogs/"+id, strings.NewReader(body))
+	req.SetPathValue("dogID", id)
 	return req
 }
 
-func decodeBody[T any](t *testing.T, rec *httptest.ResponseRecorder) T {
-	t.Helper()
-	var v T
-	if err := json.NewDecoder(rec.Body).Decode(&v); err != nil {
-		t.Fatalf("decode response body %q: %v", rec.Body.String(), err)
+func TestDogNicknamesHandler(t *testing.T) {
+	h := NewDog(mockDogService{
+		listNicknamesFn: func() []string { return []string{"Rex", "Bim"} },
+	})
+	rec := httptest.NewRecorder()
+
+	h.NicknamesHandler(rec, newDogReq(http.MethodGet, "", ""))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("code = %d, want %d", rec.Code, http.StatusOK)
 	}
-	return v
-}
-
-// ---------- NicknamesHandler ----------
-
-func TestDog_NicknamesHandler(t *testing.T) {
-	tests := []struct {
-		name  string
-		names []string
-	}{
-		{"several nicknames", []string{"Rex", "Bobik", "Sharik"}},
-		{"single nickname", []string{"Rex"}},
+	var got []string
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("decode response: %v", err)
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			svc := &mockDogService{
-				listNicknamesFn: func() []string { return tt.names },
-			}
-			h := NewDog(svc)
-
-			rec := httptest.NewRecorder()
-			h.NicknamesHandler(rec, httptest.NewRequest(http.MethodGet, "/dogs", nil))
-
-			if rec.Code != http.StatusOK {
-				t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
-			}
-			got := decodeBody[[]string](t, rec)
-			if !reflect.DeepEqual(got, tt.names) {
-				t.Errorf("body = %v, want %v", got, tt.names)
-			}
-		})
+	if len(got) != 2 || got[0] != "Rex" || got[1] != "Bim" {
+		t.Errorf("got %v, want [Rex Bim]", got)
 	}
 }
 
-// ---------- InfoHandler ----------
-
-func TestDog_InfoHandler(t *testing.T) {
-	wantDog := models.Dog{Nickname: "Rex"}
-
+func TestDogInfoHandler(t *testing.T) {
 	tests := []struct {
 		name       string
-		dogName    string
-		svcDog     models.Dog
-		svcErr     error
-		wantStatus int
-		wantErrMsg string
+		id         string
+		infoErr    error
+		wantCode   int
+		wantCalled bool
 	}{
-		{
-			name:       "success",
-			dogName:    "Rex",
-			svcDog:     wantDog,
-			wantStatus: http.StatusOK,
-		},
-		{
-			name:       "service error",
-			dogName:    "Ghost",
-			svcErr:     errors.New("dog not found"),
-			wantStatus: http.StatusBadRequest,
-			wantErrMsg: "dog not found",
-		},
+		{"ok", "5", nil, http.StatusOK, true},
+		{"invalid id", "abc", nil, http.StatusBadRequest, false},
+		{"service error", "5", errService, http.StatusBadRequest, true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var gotName string
-			svc := &mockDogService{
-				infoFn: func(n string) (models.Dog, error) {
-					gotName = n
-					return tt.svcDog, tt.svcErr
+			called, gotID := false, 0
+			h := NewDog(mockDogService{
+				infoFn: func(id int) (models.Dog, error) {
+					called, gotID = true, id
+					return models.Dog{ID: id, Nickname: "Rex"}, tt.infoErr
 				},
-			}
-			h := NewDog(svc)
-
+			})
 			rec := httptest.NewRecorder()
-			h.InfoHandler(rec, newReqWithName(http.MethodGet, tt.dogName, nil))
 
-			if rec.Code != tt.wantStatus {
-				t.Fatalf("status = %d, want %d", rec.Code, tt.wantStatus)
+			h.InfoHandler(rec, newDogReq(http.MethodGet, "", tt.id))
+
+			if rec.Code != tt.wantCode {
+				t.Errorf("code = %d, want %d", rec.Code, tt.wantCode)
 			}
-			if gotName != tt.dogName {
-				t.Errorf("service got name %q, want %q", gotName, tt.dogName)
+			if called != tt.wantCalled {
+				t.Errorf("service called = %v, want %v", called, tt.wantCalled)
 			}
-			if tt.wantErrMsg != "" {
-				if got := strings.TrimSpace(rec.Body.String()); got != tt.wantErrMsg {
-					t.Errorf("body = %q, want %q", got, tt.wantErrMsg)
+			if tt.wantCode == http.StatusOK {
+				if gotID != 5 {
+					t.Errorf("service got id %d, want 5", gotID)
 				}
-				return
-			}
-			if got := decodeBody[models.Dog](t, rec); !reflect.DeepEqual(got, tt.svcDog) {
-				t.Errorf("body = %+v, want %+v", got, tt.svcDog)
+				var resp models.Dog
+				if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+					t.Fatalf("decode response: %v", err)
+				}
+				if resp.ID != 5 || resp.Nickname != "Rex" {
+					t.Errorf("response = %+v, want ID=5 Nickname=Rex", resp)
+				}
 			}
 		})
 	}
 }
 
-// ---------- DeleteHandler ----------
-
-func TestDog_DeleteHandler(t *testing.T) {
+func TestDogDeleteHandler(t *testing.T) {
 	tests := []struct {
 		name       string
-		dogName    string
-		svcErr     error
-		wantStatus int
-		wantBody   string
+		id         string
+		deleteErr  error
+		wantCode   int
+		wantCalled bool
 	}{
-		{
-			name:       "success",
-			dogName:    "Rex",
-			wantStatus: http.StatusOK,
-			wantBody:   "dog Deleted. His name: Rex",
-		},
-		{
-			name:       "service error",
-			dogName:    "Ghost",
-			svcErr:     errors.New("dog not found"),
-			wantStatus: http.StatusBadRequest,
-			wantBody:   "dog not found",
-		},
+		{"ok", "5", nil, http.StatusOK, true},
+		{"invalid id", "abc", nil, http.StatusBadRequest, false},
+		{"service error", "5", errService, http.StatusBadRequest, true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var gotName string
-			svc := &mockDogService{
-				deleteFn: func(n string) error {
-					gotName = n
-					return tt.svcErr
+			called := false
+			h := NewDog(mockDogService{
+				deleteFn: func(int) (error, string) {
+					called = true
+					return tt.deleteErr, "Rex"
 				},
-			}
-			h := NewDog(svc)
-
+			})
 			rec := httptest.NewRecorder()
-			h.DeleteHandler(rec, newReqWithName(http.MethodDelete, tt.dogName, nil))
 
-			if rec.Code != tt.wantStatus {
-				t.Fatalf("status = %d, want %d", rec.Code, tt.wantStatus)
+			h.DeleteHandler(rec, newDogReq(http.MethodDelete, "", tt.id))
+
+			if rec.Code != tt.wantCode {
+				t.Errorf("code = %d, want %d", rec.Code, tt.wantCode)
 			}
-			if gotName != tt.dogName {
-				t.Errorf("service got name %q, want %q", gotName, tt.dogName)
+			if called != tt.wantCalled {
+				t.Errorf("service called = %v, want %v", called, tt.wantCalled)
 			}
-			if tt.svcErr != nil {
-				if got := strings.TrimSpace(rec.Body.String()); got != tt.wantBody {
-					t.Errorf("body = %q, want %q", got, tt.wantBody)
+			if tt.wantCode == http.StatusOK {
+				var msg string
+				if err := json.NewDecoder(rec.Body).Decode(&msg); err != nil {
+					t.Fatalf("decode response: %v", err)
 				}
-				return
-			}
-			if got := decodeBody[string](t, rec); got != tt.wantBody {
-				t.Errorf("body = %q, want %q", got, tt.wantBody)
+				if msg != "dog Deleted: Rex" {
+					t.Errorf("message = %q, want %q", msg, "dog Deleted: Rex")
+				}
 			}
 		})
 	}
 }
 
-// ---------- CreateHandler ----------
-
-func TestDog_CreateHandler(t *testing.T) {
-	validDog := models.Dog{Nickname: "Rex"}
-
+func TestDogCreateHandler(t *testing.T) {
 	tests := []struct {
-		name        string
-		body        func(t *testing.T) *bytes.Reader
-		svcErr      error
-		wantStatus  int
-		wantErrMsg  string
-		wantSvcCall bool
+		name       string
+		body       string
+		createErr  error
+		wantCode   int
+		wantCalled bool
 	}{
-		{
-			name:       "invalid json",
-			body:       func(t *testing.T) *bytes.Reader { return bytes.NewReader([]byte("{bad json")) },
-			wantStatus: http.StatusBadRequest,
-			wantErrMsg: "invalid request body",
-		},
-		{
-			name:       "empty body",
-			body:       func(t *testing.T) *bytes.Reader { return bytes.NewReader(nil) },
-			wantStatus: http.StatusBadRequest,
-			wantErrMsg: "invalid request body",
-		},
-		{
-			name:       "empty nickname",
-			body:       func(t *testing.T) *bytes.Reader { return mustJSON(t, models.Dog{}) },
-			wantStatus: http.StatusBadRequest,
-			wantErrMsg: "empty nickname",
-		},
-		{
-			name:        "service error",
-			body:        func(t *testing.T) *bytes.Reader { return mustJSON(t, validDog) },
-			svcErr:      errors.New("dog already exists"),
-			wantStatus:  http.StatusBadRequest,
-			wantErrMsg:  "dog already exists",
-			wantSvcCall: true,
-		},
-		{
-			name:        "success",
-			body:        func(t *testing.T) *bytes.Reader { return mustJSON(t, validDog) },
-			wantStatus:  http.StatusOK,
-			wantSvcCall: true,
-		},
+		{"ok", `{"Nickname":"Rex","Age":"3"}`, nil, http.StatusOK, true},
+		{"invalid json", `{broken`, nil, http.StatusBadRequest, false},
+		{"empty nickname", `{"Age":"3"}`, nil, http.StatusBadRequest, false},
+		{"service error", `{"Nickname":"Rex"}`, errService, http.StatusBadRequest, true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var gotDog models.Dog
-			svc := &mockDogService{
-				createFn: func(d models.Dog) error {
-					gotDog = d
-					return tt.svcErr
+			called := false
+			var got models.Dog
+			h := NewDog(mockDogService{
+				createFn: func(d models.Dog) (error, models.Dog) {
+					called, got = true, d
+					d.ID = 1 // сервис присваивает ID
+					return tt.createErr, d
 				},
-			}
-			h := NewDog(svc)
-
-			req := httptest.NewRequest(http.MethodPost, "/dogs", tt.body(t))
+			})
 			rec := httptest.NewRecorder()
-			h.CreateHandler(rec, req)
 
-			if rec.Code != tt.wantStatus {
-				t.Fatalf("status = %d, want %d", rec.Code, tt.wantStatus)
+			h.CreateHandler(rec, newDogReq(http.MethodPost, tt.body, ""))
+
+			if rec.Code != tt.wantCode {
+				t.Errorf("code = %d, want %d", rec.Code, tt.wantCode)
 			}
-			if called := svc.calls > 0; called != tt.wantSvcCall {
-				t.Errorf("service called = %v, want %v", called, tt.wantSvcCall)
+			if called != tt.wantCalled {
+				t.Errorf("service called = %v, want %v", called, tt.wantCalled)
 			}
-			if tt.wantErrMsg != "" {
-				if got := strings.TrimSpace(rec.Body.String()); got != tt.wantErrMsg {
-					t.Errorf("body = %q, want %q", got, tt.wantErrMsg)
+			if tt.wantCode == http.StatusOK {
+				if got.Nickname != "Rex" || got.Age != "3" {
+					t.Errorf("service got %+v, want Nickname=Rex Age=3", got)
 				}
-				return
-			}
-			if !reflect.DeepEqual(gotDog, validDog) {
-				t.Errorf("service got %+v, want %+v", gotDog, validDog)
-			}
-			if got := decodeBody[models.Dog](t, rec); !reflect.DeepEqual(got, validDog) {
-				t.Errorf("body = %+v, want %+v", got, validDog)
+				var resp models.Dog
+				if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+					t.Fatalf("decode response: %v", err)
+				}
+				if resp.ID != 1 || resp.Nickname != "Rex" {
+					t.Errorf("response = %+v, want ID=1 Nickname=Rex", resp)
+				}
 			}
 		})
 	}
 }
 
-// ---------- UpdateHandler ----------
-
-func TestDog_UpdateHandler(t *testing.T) {
-	input := models.Dog{Nickname: "Rex"}
-	updated := models.Dog{Nickname: "Rex"} // то, что вернёт сервис
-
+func TestDogUpdateHandler(t *testing.T) {
 	tests := []struct {
-		name        string
-		body        func(t *testing.T) *bytes.Reader
-		svcErr      error
-		wantStatus  int
-		wantErrMsg  string
-		wantSvcCall bool
+		name       string
+		id         string
+		body       string
+		updateErr  error
+		wantCode   int
+		wantCalled bool
 	}{
-		{
-			name:       "invalid json",
-			body:       func(t *testing.T) *bytes.Reader { return bytes.NewReader([]byte("{bad json")) },
-			wantStatus: http.StatusBadRequest,
-			wantErrMsg: "invalid request body",
-		},
-		{
-			name:       "empty nickname",
-			body:       func(t *testing.T) *bytes.Reader { return mustJSON(t, models.Dog{}) },
-			wantStatus: http.StatusBadRequest,
-			wantErrMsg: "nickname is empty",
-		},
-		{
-			name:        "service error",
-			body:        func(t *testing.T) *bytes.Reader { return mustJSON(t, input) },
-			svcErr:      errors.New("dog not found"),
-			wantStatus:  http.StatusBadRequest,
-			wantErrMsg:  "dog not found",
-			wantSvcCall: true,
-		},
-		{
-			// NB: сейчас хендлер отвечает 201 — см. замечание про 200 ниже
-			name:        "success",
-			body:        func(t *testing.T) *bytes.Reader { return mustJSON(t, input) },
-			wantStatus:  http.StatusOK,
-			wantSvcCall: true,
-		},
+		{"ok", "5", `{"Nickname":"Max"}`, nil, http.StatusOK, true},
+		{"invalid id", "abc", `{"Nickname":"Max"}`, nil, http.StatusBadRequest, false},
+		{"invalid json", "5", `{broken`, nil, http.StatusBadRequest, false},
+		{"empty nickname", "5", `{"Age":"4"}`, nil, http.StatusBadRequest, false},
+		{"service error", "5", `{"Nickname":"Max"}`, errService, http.StatusBadRequest, true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var gotDog models.Dog
-			svc := &mockDogService{
-				updateFn: func(d models.Dog) (models.Dog, error) {
-					gotDog = d
-					if tt.svcErr != nil {
-						return models.Dog{}, tt.svcErr
-					}
-					return updated, nil
+			called, gotID := false, 0
+			var got models.Dog
+			h := NewDog(mockDogService{
+				updateFn: func(id int, d models.Dog) (models.Dog, error) {
+					called, gotID, got = true, id, d
+					return d, tt.updateErr
 				},
-			}
-			h := NewDog(svc)
-
-			req := httptest.NewRequest(http.MethodPatch, "/dogs", tt.body(t))
+			})
 			rec := httptest.NewRecorder()
-			h.UpdateHandler(rec, req)
 
-			if rec.Code != tt.wantStatus {
-				t.Fatalf("status = %d, want %d", rec.Code, tt.wantStatus)
+			h.UpdateHandler(rec, newDogReq(http.MethodPatch, tt.body, tt.id))
+
+			if rec.Code != tt.wantCode {
+				t.Errorf("code = %d, want %d", rec.Code, tt.wantCode)
 			}
-			if called := svc.calls > 0; called != tt.wantSvcCall {
-				t.Errorf("service called = %v, want %v", called, tt.wantSvcCall)
+			if called != tt.wantCalled {
+				t.Errorf("service called = %v, want %v", called, tt.wantCalled)
 			}
-			if tt.wantErrMsg != "" {
-				if got := strings.TrimSpace(rec.Body.String()); got != tt.wantErrMsg {
-					t.Errorf("body = %q, want %q", got, tt.wantErrMsg)
-				}
-				return
-			}
-			if !reflect.DeepEqual(gotDog, input) {
-				t.Errorf("service got %+v, want %+v", gotDog, input)
-			}
-			if got := decodeBody[models.Dog](t, rec); !reflect.DeepEqual(got, updated) {
-				t.Errorf("body = %+v, want %+v", got, updated)
+			if tt.wantCode == http.StatusOK && (gotID != 5 || got.Nickname != "Max") {
+				t.Errorf("service got id=%d dog=%+v, want id=5 Nickname=Max", gotID, got)
 			}
 		})
 	}
 }
 
-// ---------- ReplaceHandler ----------
-
-func TestDog_ReplaceHandler(t *testing.T) {
-	input := models.Dog{Nickname: "Rex"}
-	replaced := models.Dog{Nickname: "Rex"}
-
+func TestDogReplaceHandler(t *testing.T) {
 	tests := []struct {
-		name        string
-		body        func(t *testing.T) *bytes.Reader
-		svcErr      error
-		wantStatus  int
-		wantErrMsg  string
-		wantSvcCall bool
+		name       string
+		id         string
+		body       string
+		replaceErr error
+		wantCode   int
+		wantCalled bool
 	}{
-		{
-			name:       "invalid json",
-			body:       func(t *testing.T) *bytes.Reader { return bytes.NewReader([]byte("{bad json")) },
-			wantStatus: http.StatusBadRequest,
-			wantErrMsg: "invalid request body",
-		},
-		{
-			name:       "empty nickname",
-			body:       func(t *testing.T) *bytes.Reader { return mustJSON(t, models.Dog{}) },
-			wantStatus: http.StatusBadRequest,
-			wantErrMsg: "nickname is empty",
-		},
-		{
-			name:        "service error",
-			body:        func(t *testing.T) *bytes.Reader { return mustJSON(t, input) },
-			svcErr:      errors.New("dog not found"),
-			wantStatus:  http.StatusBadRequest,
-			wantErrMsg:  "dog not found",
-			wantSvcCall: true,
-		},
-		{
-			name:        "success",
-			body:        func(t *testing.T) *bytes.Reader { return mustJSON(t, input) },
-			wantStatus:  http.StatusCreated,
-			wantSvcCall: true,
-		},
+		{"ok", "5", `{"Nickname":"Max"}`, nil, http.StatusCreated, true},
+		{"invalid id", "abc", `{"Nickname":"Max"}`, nil, http.StatusBadRequest, false},
+		{"invalid json", "5", `{broken`, nil, http.StatusBadRequest, false},
+		{"empty nickname", "5", `{"Age":"4"}`, nil, http.StatusBadRequest, false},
+		{"service error", "5", `{"Nickname":"Max"}`, errService, http.StatusBadRequest, true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var gotDog models.Dog
-			svc := &mockDogService{
-				replaceFn: func(d models.Dog) (models.Dog, error) {
-					gotDog = d
-					if tt.svcErr != nil {
-						return models.Dog{}, tt.svcErr
-					}
-					return replaced, nil
+			called, gotID := false, 0
+			var got models.Dog
+			h := NewDog(mockDogService{
+				replaceFn: func(id int, d models.Dog) (models.Dog, error) {
+					called, gotID, got = true, id, d
+					return d, tt.replaceErr
 				},
-			}
-			h := NewDog(svc)
-
-			req := httptest.NewRequest(http.MethodPut, "/dogs", tt.body(t))
+			})
 			rec := httptest.NewRecorder()
-			h.ReplaceHandler(rec, req)
 
-			if rec.Code != tt.wantStatus {
-				t.Fatalf("status = %d, want %d", rec.Code, tt.wantStatus)
+			h.ReplaceHandler(rec, newDogReq(http.MethodPut, tt.body, tt.id))
+
+			if rec.Code != tt.wantCode {
+				t.Errorf("code = %d, want %d", rec.Code, tt.wantCode)
 			}
-			if called := svc.calls > 0; called != tt.wantSvcCall {
-				t.Errorf("service called = %v, want %v", called, tt.wantSvcCall)
+			if called != tt.wantCalled {
+				t.Errorf("service called = %v, want %v", called, tt.wantCalled)
 			}
-			if tt.wantErrMsg != "" {
-				if got := strings.TrimSpace(rec.Body.String()); got != tt.wantErrMsg {
-					t.Errorf("body = %q, want %q", got, tt.wantErrMsg)
-				}
-				return
-			}
-			if !reflect.DeepEqual(gotDog, input) {
-				t.Errorf("service got %+v, want %+v", gotDog, input)
-			}
-			if got := decodeBody[models.Dog](t, rec); !reflect.DeepEqual(got, replaced) {
-				t.Errorf("body = %+v, want %+v", got, replaced)
+			if tt.wantCode == http.StatusCreated && (gotID != 5 || got.Nickname != "Max") {
+				t.Errorf("service got id=%d dog=%+v, want id=5 Nickname=Max", gotID, got)
 			}
 		})
 	}

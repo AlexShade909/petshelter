@@ -39,7 +39,7 @@ func CreateShelters() map[int]models.Shelter {
 func CreateDogs(shelterData map[int]models.Shelter, Сlinic map[int]models.Clinic) map[int]models.Dog {
 	dogs := map[int]models.Dog{
 		0: {
-			//TODO: дублирование клички в ключ и в поле
+			ID:          0,
 			Nickname:    "Чарли",
 			Age:         "12",
 			WeightKg:    "135",
@@ -48,6 +48,7 @@ func CreateDogs(shelterData map[int]models.Shelter, Сlinic map[int]models.Clini
 			Сlinic:      Сlinic[0],
 		},
 		1: {
+			ID:          1,
 			Nickname:    "Спайси",
 			Age:         "13",
 			WeightKg:    "15",
@@ -56,6 +57,7 @@ func CreateDogs(shelterData map[int]models.Shelter, Сlinic map[int]models.Clini
 			Сlinic:      Сlinic[0],
 		},
 		2: {
+			ID:          2,
 			Nickname:    "Кайман",
 			Age:         "643",
 			WeightKg:    "12",

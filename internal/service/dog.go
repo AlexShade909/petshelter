@@ -5,6 +5,7 @@ import (
 	"petshelter/internal/models"
 	"petshelter/internal/repository"
 	"sort"
+	"strconv"
 )
 
 type Dog struct {
@@ -24,8 +25,8 @@ var (
 
 func (d Dog) ListNicknames() []string {
 	nicknames := make([]string, 0, len(dogsData))
-	for _, v := range dogsData {
-		nicknames = append(nicknames, v.Nickname)
+	for i, v := range dogsData {
+		nicknames = append(nicknames, v.Nickname+" ID: "+strconv.Itoa(i))
 	}
 	sort.Strings(nicknames)
 	return nicknames
@@ -39,39 +40,60 @@ func (d Dog) Info(ID int) (models.Dog, error) {
 	return dog, nil
 }
 
-func (d Dog) Delete(nickname string) error {
-	_, ok := dogsData[nickname]
+func (d Dog) Delete(ID int) (error, string) {
+	_, ok := dogsData[ID]
 	if !ok {
-		return errors.New("dog not found")
+		return errors.New("dog not found"), ""
 	}
-	delete(dogsData, nickname)
-	return nil
+	nickname := dogsData[ID].Nickname
+	delete(dogsData, ID)
+	return nil, nickname
 }
 
-func (d Dog) Create(dog models.Dog) error {
-	_, ok := dogsData[dog.Nickname]
-	if ok {
-		return errors.New("nickname occupied")
-	}
-	dogsData[dog.Nickname] = dog
-	return nil
+var nexDogID = len(dogsData)
+
+func (d Dog) Create(dog models.Dog) (models.Dog, error) {
+	dog.ID = nexDogID
+	nexDogID++
+	dogsData[dog.ID] = dog
+	return dog, nil
 }
 
-func (d Dog) Update(dogUpdateFields models.Dog) (models.Dog, error) {
-	_, ok := dogsData[dogUpdateFields.Nickname]
-	if !ok {
-		return models.Dog{}, errors.New("dog not found")
-	}
-	dogsData[dogUpdateFields.Nickname] = dogUpdateFields
-	// TODO: this PUT metod fix to PATCH.
-	return dogsData[dogUpdateFields.Nickname], nil
-}
-
-func (d Dog) Replace(dogReplaceFields models.Dog) (models.Dog, error) {
-	_, ok := dogsData[dogReplaceFields.Nickname]
+func (d Dog) Update(ID int, patch models.Dog) (models.Dog, error) {
+	dog, ok := dogsData[ID]
 	if !ok {
 		return models.Dog{}, errors.New("dog not found")
 	}
-	dogsData[dogReplaceFields.Nickname] = dogReplaceFields
-	return dogsData[dogReplaceFields.Nickname], nil
+
+	if patch.Age != "" {
+		dog.Age = patch.Age
+	}
+	if patch.Nickname != "" {
+		dog.Nickname = patch.Nickname
+	}
+	if patch.CheckInDate != "" {
+		dog.CheckInDate = patch.CheckInDate
+	}
+	if patch.WeightKg != "" {
+		dog.WeightKg = patch.WeightKg
+	}
+	if patch.Сlinic.Address != "" {
+		dog.Сlinic = patch.Сlinic
+	}
+
+	if patch.Shelter.Address != "" {
+		dog.Shelter = patch.Shelter
+	}
+	dogsData[ID] = dog
+	return dogsData[ID], nil
+}
+
+func (d Dog) Replace(ID int, patch models.Dog) (models.Dog, error) {
+	_, ok := dogsData[ID]
+	patch.ID = ID
+	if !ok {
+		return models.Dog{}, errors.New("dog not found")
+	}
+	dogsData[ID] = patch
+	return dogsData[ID], nil
 }

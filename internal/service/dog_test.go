@@ -7,242 +7,288 @@ import (
 	"petshelter/internal/models"
 )
 
-// setDogs подменяет глобальное хранилище dogsData на время теста
-// и возвращает исходное состояние в t.Cleanup.
-// Из-за глобального состояния тесты НЕ должны запускаться через t.Parallel().
-func setDogs(t *testing.T, dogs ...models.Dog) {
+// resetDogs подменяет глобальную мапу и счётчик ID известными данными,
+// а после теста восстанавливает исходные значения.
+func resetDogs(t *testing.T, data map[int]models.Dog) {
 	t.Helper()
-	orig := dogsData
-	dogsData = make(map[string]models.Dog, len(dogs))
-	for _, d := range dogs {
-		dogsData[d.Nickname] = d
-	}
-	t.Cleanup(func() { dogsData = orig })
-}
-
-func TestNewDog(t *testing.T) {
-	_ = NewDog() // конструктор не должен паниковать
+	origData, origNext := dogsData, nexDogID
+	dogsData = data
+	nexDogID = len(data)
+	t.Cleanup(func() {
+		dogsData, nexDogID = origData, origNext
+	})
 }
 
 func TestDog_ListNicknames(t *testing.T) {
-	tests := []struct {
-		name string
-		dogs []models.Dog
-		want []string
-	}{
-		{
-			name: "empty storage returns empty non-nil slice",
-			dogs: nil,
-			want: []string{},
-		},
-		{
-			name: "single dog",
-			dogs: []models.Dog{{Nickname: "Rex"}},
-			want: []string{"Rex"},
-		},
-		{
-			name: "result is sorted",
-			dogs: []models.Dog{{Nickname: "Sharik"}, {Nickname: "Bobik"}, {Nickname: "Rex"}},
-			want: []string{"Bobik", "Rex", "Sharik"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			setDogs(t, tt.dogs...)
-
-			got := NewDog().ListNicknames()
-
-			if got == nil {
-				t.Fatal("got nil slice, want non-nil (JSON would encode it as null)")
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("got %v, want %v", got, tt.want)
-			}
+	t.Run("sorted with ids", func(t *testing.T) {
+		resetDogs(t, map[int]models.Dog{
+			1: {ID: 1, Nickname: "Rex"},
+			2: {ID: 2, Nickname: "Bim"},
 		})
-	}
+
+		got := NewDog().ListNicknames()
+		want := []string{"Bim ID: 2", "Rex ID: 1"}
+
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("got %v, want %v", got, want)
+		}
+	})
+
+	t.Run("empty", func(t *testing.T) {
+		resetDogs(t, map[int]models.Dog{})
+
+		got := NewDog().ListNicknames()
+
+		if got == nil || len(got) != 0 {
+			t.Errorf("got %#v, want empty non-nil slice", got)
+		}
+	})
 }
 
 func TestDog_Info(t *testing.T) {
-	rex := models.Dog{Nickname: "Rex"}
+	resetDogs(t, map[int]models.Dog{
+		1: {ID: 1, Nickname: "Rex", Age: "3"},
+	})
 
-	tests := []struct {
-		name    string
-		nick    string
-		want    models.Dog
-		wantErr string
-	}{
-		{name: "existing dog", nick: "Rex", want: rex},
-		{name: "unknown dog", nick: "Ghost", wantErr: "dog not found"},
-		{name: "empty nickname", nick: "", wantErr: "dog not found"},
-		{name: "case sensitive", nick: "rex", wantErr: "dog not found"},
-	}
+	t.Run("found", func(t *testing.T) {
+		got, err := NewDog().Info(1)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got.ID != 1 || got.Nickname != "Rex" || got.Age != "3" {
+			t.Errorf("got %+v", got)
+		}
+	})
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			setDogs(t, rex)
-
-			got, err := NewDog().Info(tt.nick)
-
-			if tt.wantErr != "" {
-				if err == nil || err.Error() != tt.wantErr {
-					t.Fatalf("err = %v, want %q", err, tt.wantErr)
-				}
-				if !reflect.DeepEqual(got, models.Dog{}) {
-					t.Errorf("got %+v on error, want zero value", got)
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("got %+v, want %+v", got, tt.want)
-			}
-		})
-	}
+	t.Run("not found", func(t *testing.T) {
+		_, err := NewDog().Info(99)
+		if err == nil {
+			t.Error("expected error, got nil")
+		}
+	})
 }
 
 func TestDog_Delete(t *testing.T) {
-	t.Run("existing dog is removed", func(t *testing.T) {
-		setDogs(t, models.Dog{Nickname: "Rex"}, models.Dog{Nickname: "Bobik"})
+	t.Run("ok", func(t *testing.T) {
+		resetDogs(t, map[int]models.Dog{
+			1: {ID: 1, Nickname: "Rex"},
+			2: {ID: 2, Nickname: "Bim"},
+		})
 
-		if err := NewDog().Delete("Rex"); err != nil {
+		err, nickname := NewDog().Delete(1)
+
+		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if _, ok := dogsData["Rex"]; ok {
-			t.Error("Rex still in storage after Delete")
+		if nickname != "Rex" {
+			t.Errorf("nickname = %q, want Rex", nickname)
 		}
-		if _, ok := dogsData["Bobik"]; !ok {
-			t.Error("Bobik was removed, but should stay")
+		if _, ok := dogsData[1]; ok {
+			t.Error("dog 1 still in storage")
+		}
+		if _, ok := dogsData[2]; !ok {
+			t.Error("dog 2 was removed by mistake")
 		}
 	})
 
-	t.Run("unknown dog returns error and storage is untouched", func(t *testing.T) {
-		setDogs(t, models.Dog{Nickname: "Rex"})
+	t.Run("not found", func(t *testing.T) {
+		resetDogs(t, map[int]models.Dog{1: {ID: 1, Nickname: "Rex"}})
 
-		err := NewDog().Delete("Ghost")
+		err, nickname := NewDog().Delete(99)
 
-		if err == nil || err.Error() != "dog not found" {
-			t.Fatalf("err = %v, want %q", err, "dog not found")
+		if err == nil {
+			t.Error("expected error, got nil")
+		}
+		if nickname != "" {
+			t.Errorf("nickname = %q, want empty", nickname)
 		}
 		if len(dogsData) != 1 {
 			t.Errorf("storage size = %d, want 1", len(dogsData))
-		}
-	})
-
-	t.Run("second delete of the same dog fails", func(t *testing.T) {
-		setDogs(t, models.Dog{Nickname: "Rex"})
-		d := NewDog()
-
-		if err := d.Delete("Rex"); err != nil {
-			t.Fatalf("first delete: %v", err)
-		}
-		if err := d.Delete("Rex"); err == nil {
-			t.Error("second delete: want error, got nil")
 		}
 	})
 }
 
 func TestDog_Create(t *testing.T) {
-	t.Run("new dog is stored", func(t *testing.T) {
-		setDogs(t)
-		rex := models.Dog{Nickname: "Rex"}
+	t.Run("assigns id and stores", func(t *testing.T) {
+		resetDogs(t, map[int]models.Dog{
+			0: {ID: 0, Nickname: "Old"},
+		})
 
-		if err := NewDog().Create(rex); err != nil {
+		got, err := NewDog().Create(models.Dog{Nickname: "Rex", Age: "3"})
+
+		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		got, ok := dogsData["Rex"]
+		if got.Nickname != "Rex" || got.Age != "3" {
+			t.Errorf("got %+v", got)
+		}
+		stored, ok := dogsData[got.ID]
 		if !ok {
-			t.Fatal("dog not in storage after Create")
+			t.Fatalf("dog with id %d not in storage", got.ID)
 		}
-		if !reflect.DeepEqual(got, rex) {
-			t.Errorf("stored %+v, want %+v", got, rex)
+		if stored.ID != got.ID {
+			t.Errorf("stored.ID = %d, key = %d, must match", stored.ID, got.ID)
 		}
-	})
-
-	t.Run("duplicate nickname returns error and keeps original", func(t *testing.T) {
-		original := models.Dog{Nickname: "Rex"}
-		setDogs(t, original)
-
-		err := NewDog().Create(models.Dog{Nickname: "Rex"})
-
-		if err == nil || err.Error() != "nickname occupied" {
-			t.Fatalf("err = %v, want %q", err, "nickname occupied")
-		}
-		if !reflect.DeepEqual(dogsData["Rex"], original) {
-			t.Errorf("original dog was overwritten: %+v", dogsData["Rex"])
-		}
-		if len(dogsData) != 1 {
-			t.Errorf("storage size = %d, want 1", len(dogsData))
+		if dogsData[0].Nickname != "Old" {
+			t.Errorf("existing dog overwritten: %+v", dogsData[0])
 		}
 	})
 
-	t.Run("created dog is visible via Info and ListNicknames", func(t *testing.T) {
-		setDogs(t)
-		d := NewDog()
+	t.Run("does not overwrite existing after delete", func(t *testing.T) {
+		resetDogs(t, map[int]models.Dog{
+			0: {ID: 0, Nickname: "A"},
+			1: {ID: 1, Nickname: "B"},
+			2: {ID: 2, Nickname: "C"},
+		})
+		svc := NewDog()
+		svc.Delete(0)
 
-		if err := d.Create(models.Dog{Nickname: "Rex"}); err != nil {
+		got, err := svc.Create(models.Dog{Nickname: "New"})
+
+		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if _, err := d.Info("Rex"); err != nil {
-			t.Errorf("Info after Create: %v", err)
+		if dogsData[2].Nickname != "C" {
+			t.Errorf("dog 2 overwritten: %+v", dogsData[2])
 		}
-		if got := d.ListNicknames(); !reflect.DeepEqual(got, []string{"Rex"}) {
-			t.Errorf("ListNicknames = %v, want [Rex]", got)
+		if got.ID == 2 {
+			t.Errorf("new dog got occupied id %d", got.ID)
+		}
+		if len(dogsData) != 3 {
+			t.Errorf("storage size = %d, want 3", len(dogsData))
+		}
+	})
+
+	t.Run("ids are unique", func(t *testing.T) {
+		resetDogs(t, map[int]models.Dog{})
+		svc := NewDog()
+
+		a, _ := svc.Create(models.Dog{Nickname: "A"})
+		b, _ := svc.Create(models.Dog{Nickname: "B"})
+
+		if a.ID == b.ID {
+			t.Errorf("both dogs got id %d", a.ID)
+		}
+		if len(dogsData) != 2 {
+			t.Errorf("storage size = %d, want 2", len(dogsData))
+		}
+	})
+
+	t.Run("id from body is ignored", func(t *testing.T) {
+		resetDogs(t, map[int]models.Dog{})
+
+		got, _ := NewDog().Create(models.Dog{ID: 777, Nickname: "Rex"})
+
+		if got.ID == 777 {
+			t.Error("client-provided ID must be overwritten by the service")
 		}
 	})
 }
 
-// Update и Replace сейчас имеют одинаковую реализацию (см. TODO в коде),
-// поэтому тестируем их одним набором. Когда Update превратится в PATCH,
-// для него нужен будет отдельный тест на частичное обновление полей.
-func TestDog_UpdateAndReplace(t *testing.T) {
-	methods := []struct {
-		name string
-		call func(d Dog, dog models.Dog) (models.Dog, error)
-	}{
-		{"Update", func(d Dog, dog models.Dog) (models.Dog, error) { return d.Update(dog) }},
-		{"Replace", func(d Dog, dog models.Dog) (models.Dog, error) { return d.Replace(dog) }},
+func TestDog_Update(t *testing.T) {
+	orig := models.Dog{
+		ID:          1,
+		Nickname:    "Rex",
+		Age:         "3",
+		WeightKg:    "20",
+		CheckInDate: "2026-01-01",
+		Shelter:     models.Shelter{Address: "old shelter"},
 	}
 
-	for _, m := range methods {
-		t.Run(m.name+"/existing dog", func(t *testing.T) {
-			setDogs(t, models.Dog{Nickname: "Rex"})
-			// TODO: добавь сюда изменённое поле models.Dog (возраст, порода и т.п.),
-			// иначе тест не отличит «заменил» от «ничего не сделал».
-			newDog := models.Dog{Nickname: "Rex"}
+	t.Run("partial update keeps other fields", func(t *testing.T) {
+		resetDogs(t, map[int]models.Dog{1: orig})
 
-			got, err := m.call(NewDog(), newDog)
+		got, err := NewDog().Update(1, models.Dog{Age: "4"})
 
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if !reflect.DeepEqual(got, newDog) {
-				t.Errorf("returned %+v, want %+v", got, newDog)
-			}
-			if !reflect.DeepEqual(dogsData["Rex"], newDog) {
-				t.Errorf("stored %+v, want %+v", dogsData["Rex"], newDog)
-			}
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got.Age != "4" {
+			t.Errorf("Age = %q, want 4", got.Age)
+		}
+		if got.Nickname != "Rex" {
+			t.Errorf("Nickname = %q, want Rex (must not be wiped)", got.Nickname)
+		}
+		if got.WeightKg != "20" || got.CheckInDate != "2026-01-01" {
+			t.Errorf("other fields wiped: %+v", got)
+		}
+		if got.Shelter.Address != "old shelter" {
+			t.Errorf("Shelter = %+v, want old shelter", got.Shelter)
+		}
+		if got.ID != 1 {
+			t.Errorf("ID = %d, want 1", got.ID)
+		}
+		if !reflect.DeepEqual(dogsData[1], got) {
+			t.Errorf("storage %+v differs from returned %+v", dogsData[1], got)
+		}
+	})
+
+	t.Run("updates all provided fields", func(t *testing.T) {
+		resetDogs(t, map[int]models.Dog{1: orig})
+
+		got, err := NewDog().Update(1, models.Dog{
+			Nickname:    "Max",
+			Age:         "5",
+			WeightKg:    "25",
+			CheckInDate: "2026-02-02",
+			Shelter:     models.Shelter{Address: "new shelter"},
 		})
 
-		t.Run(m.name+"/unknown dog", func(t *testing.T) {
-			setDogs(t, models.Dog{Nickname: "Rex"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got.Nickname != "Max" || got.Age != "5" || got.WeightKg != "25" ||
+			got.CheckInDate != "2026-02-02" || got.Shelter.Address != "new shelter" {
+			t.Errorf("got %+v", got)
+		}
+	})
 
-			got, err := m.call(NewDog(), models.Dog{Nickname: "Ghost"})
+	t.Run("not found", func(t *testing.T) {
+		resetDogs(t, map[int]models.Dog{1: orig})
 
-			if err == nil || err.Error() != "dog not found" {
-				t.Fatalf("err = %v, want %q", err, "dog not found")
-			}
-			if !reflect.DeepEqual(got, models.Dog{}) {
-				t.Errorf("got %+v on error, want zero value", got)
-			}
-			if _, ok := dogsData["Ghost"]; ok {
-				t.Error("unknown dog must not be created by " + m.name)
-			}
-			if len(dogsData) != 1 {
-				t.Errorf("storage size = %d, want 1", len(dogsData))
-			}
+		_, err := NewDog().Update(99, models.Dog{Age: "4"})
+
+		if err == nil {
+			t.Error("expected error, got nil")
+		}
+	})
+}
+
+func TestDog_Replace(t *testing.T) {
+	t.Run("replaces fully and forces id", func(t *testing.T) {
+		resetDogs(t, map[int]models.Dog{
+			1: {ID: 1, Nickname: "Rex", Age: "3", WeightKg: "20"},
 		})
-	}
+
+		got, err := NewDog().Replace(1, models.Dog{ID: 777, Nickname: "Max"})
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got.ID != 1 {
+			t.Errorf("ID = %d, want 1 (taken from path, not body)", got.ID)
+		}
+		if got.Nickname != "Max" || got.Age != "" || got.WeightKg != "" {
+			t.Errorf("old fields must be cleared, got %+v", got)
+		}
+		if len(dogsData) != 1 {
+			t.Errorf("storage size = %d, want 1", len(dogsData))
+		}
+		if dogsData[1].Nickname != "Max" {
+			t.Errorf("storage not updated: %+v", dogsData[1])
+		}
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		resetDogs(t, map[int]models.Dog{1: {ID: 1, Nickname: "Rex"}})
+
+		_, err := NewDog().Replace(99, models.Dog{Nickname: "Max"})
+
+		if err == nil {
+			t.Error("expected error, got nil")
+		}
+		if _, ok := dogsData[99]; ok {
+			t.Error("dog 99 must not be created by Replace")
+		}
+	})
 }
