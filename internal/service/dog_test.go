@@ -75,7 +75,7 @@ func TestDog_Delete(t *testing.T) {
 			2: {ID: 2, Nickname: "Bim"},
 		})
 
-		err, nickname := NewDog().Delete(1)
+		nickname, err := NewDog().Delete(1)
 
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -94,7 +94,7 @@ func TestDog_Delete(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		resetDogs(t, map[int]models.Dog{1: {ID: 1, Nickname: "Rex"}})
 
-		err, nickname := NewDog().Delete(99)
+		nickname, err := NewDog().Delete(99)
 
 		if err == nil {
 			t.Error("expected error, got nil")
