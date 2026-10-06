@@ -40,14 +40,14 @@ func (d Dog) Info(ID int) (models.Dog, error) {
 	return dog, nil
 }
 
-func (d Dog) Delete(ID int) (error, string) {
+func (d Dog) Delete(ID int) (string, error) {
 	_, ok := dogsData[ID]
 	if !ok {
-		return errors.New("dog not found"), ""
+		return "", errors.New("dog not found")
 	}
 	nickname := dogsData[ID].Nickname
 	delete(dogsData, ID)
-	return nil, nickname
+	return nickname, nil
 }
 
 var nexDogID = len(dogsData)
