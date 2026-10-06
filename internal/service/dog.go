@@ -65,7 +65,7 @@ func (d Dog) Update(ID int, patch models.Dog) (models.Dog, error) {
 		return models.Dog{}, errors.New("dog not found")
 	}
 
-	if patch.Age != "" {
+	if patch.Age != 0 {
 		dog.Age = patch.Age
 	}
 	if patch.Nickname != "" {
@@ -74,7 +74,7 @@ func (d Dog) Update(ID int, patch models.Dog) (models.Dog, error) {
 	if patch.CheckInDate != "" {
 		dog.CheckInDate = patch.CheckInDate
 	}
-	if patch.WeightKg != "" {
+	if patch.WeightKg != 0 {
 		dog.WeightKg = patch.WeightKg
 	}
 	if patch.Сlinic.Address != "" {

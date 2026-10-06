@@ -3,8 +3,8 @@ package models
 type Dog struct {
 	ID          int
 	Nickname    string
-	Age         string
-	WeightKg    string
+	Age         int
+	WeightKg    int
 	CheckInDate string
 	Shelter     Shelter
 	Сlinic      Clinic

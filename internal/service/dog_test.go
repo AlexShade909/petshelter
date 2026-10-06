@@ -47,7 +47,7 @@ func TestDog_ListNicknames(t *testing.T) {
 
 func TestDog_Info(t *testing.T) {
 	resetDogs(t, map[int]models.Dog{
-		1: {ID: 1, Nickname: "Rex", Age: "3"},
+		1: {ID: 1, Nickname: "Rex", Age: 3},
 	})
 
 	t.Run("found", func(t *testing.T) {
@@ -55,7 +55,7 @@ func TestDog_Info(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if got.ID != 1 || got.Nickname != "Rex" || got.Age != "3" {
+		if got.ID != 1 || got.Nickname != "Rex" || got.Age != 3 {
 			t.Errorf("got %+v", got)
 		}
 	})
@@ -114,12 +114,12 @@ func TestDog_Create(t *testing.T) {
 			0: {ID: 0, Nickname: "Old"},
 		})
 
-		got, err := NewDog().Create(models.Dog{Nickname: "Rex", Age: "3"})
+		got, err := NewDog().Create(models.Dog{Nickname: "Rex", Age: 3})
 
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if got.Nickname != "Rex" || got.Age != "3" {
+		if got.Nickname != "Rex" || got.Age != 3 {
 			t.Errorf("got %+v", got)
 		}
 		stored, ok := dogsData[got.ID]
@@ -189,8 +189,8 @@ func TestDog_Update(t *testing.T) {
 	orig := models.Dog{
 		ID:          1,
 		Nickname:    "Rex",
-		Age:         "3",
-		WeightKg:    "20",
+		Age:         3,
+		WeightKg:    20,
 		CheckInDate: "2026-01-01",
 		Shelter:     models.Shelter{Address: "old shelter"},
 	}
@@ -198,18 +198,18 @@ func TestDog_Update(t *testing.T) {
 	t.Run("partial update keeps other fields", func(t *testing.T) {
 		resetDogs(t, map[int]models.Dog{1: orig})
 
-		got, err := NewDog().Update(1, models.Dog{Age: "4"})
+		got, err := NewDog().Update(1, models.Dog{Age: 4})
 
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if got.Age != "4" {
-			t.Errorf("Age = %q, want 4", got.Age)
+		if got.Age != 4 {
+			t.Errorf("Age = %d, want 4", got.Age)
 		}
 		if got.Nickname != "Rex" {
 			t.Errorf("Nickname = %q, want Rex (must not be wiped)", got.Nickname)
 		}
-		if got.WeightKg != "20" || got.CheckInDate != "2026-01-01" {
+		if got.WeightKg != 20 || got.CheckInDate != "2026-01-01" {
 			t.Errorf("other fields wiped: %+v", got)
 		}
 		if got.Shelter.Address != "old shelter" {
@@ -228,8 +228,8 @@ func TestDog_Update(t *testing.T) {
 
 		got, err := NewDog().Update(1, models.Dog{
 			Nickname:    "Max",
-			Age:         "5",
-			WeightKg:    "25",
+			Age:         5,
+			WeightKg:    25,
 			CheckInDate: "2026-02-02",
 			Shelter:     models.Shelter{Address: "new shelter"},
 		})
@@ -237,7 +237,7 @@ func TestDog_Update(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if got.Nickname != "Max" || got.Age != "5" || got.WeightKg != "25" ||
+		if got.Nickname != "Max" || got.Age != 5 || got.WeightKg != 25 ||
 			got.CheckInDate != "2026-02-02" || got.Shelter.Address != "new shelter" {
 			t.Errorf("got %+v", got)
 		}
@@ -246,7 +246,7 @@ func TestDog_Update(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		resetDogs(t, map[int]models.Dog{1: orig})
 
-		_, err := NewDog().Update(99, models.Dog{Age: "4"})
+		_, err := NewDog().Update(99, models.Dog{Age: 4})
 
 		if err == nil {
 			t.Error("expected error, got nil")
@@ -257,7 +257,7 @@ func TestDog_Update(t *testing.T) {
 func TestDog_Replace(t *testing.T) {
 	t.Run("replaces fully and forces id", func(t *testing.T) {
 		resetDogs(t, map[int]models.Dog{
-			1: {ID: 1, Nickname: "Rex", Age: "3", WeightKg: "20"},
+			1: {ID: 1, Nickname: "Rex", Age: 3, WeightKg: 20},
 		})
 
 		got, err := NewDog().Replace(1, models.Dog{ID: 777, Nickname: "Max"})
@@ -268,7 +268,7 @@ func TestDog_Replace(t *testing.T) {
 		if got.ID != 1 {
 			t.Errorf("ID = %d, want 1 (taken from path, not body)", got.ID)
 		}
-		if got.Nickname != "Max" || got.Age != "" || got.WeightKg != "" {
+		if got.Nickname != "Max" || got.Age != 0 || got.WeightKg != 0 {
 			t.Errorf("old fields must be cleared, got %+v", got)
 		}
 		if len(dogsData) != 1 {

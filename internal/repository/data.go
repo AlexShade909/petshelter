@@ -41,8 +41,8 @@ func CreateDogs(shelterData map[int]models.Shelter, Сlinic map[int]models.Clini
 		0: {
 			ID:          0,
 			Nickname:    "Чарли",
-			Age:         "12",
-			WeightKg:    "135",
+			Age:         12,
+			WeightKg:    135,
 			CheckInDate: "05.02.2025",
 			Shelter:     shelterData[0],
 			Сlinic:      Сlinic[0],
@@ -50,8 +50,8 @@ func CreateDogs(shelterData map[int]models.Shelter, Сlinic map[int]models.Clini
 		1: {
 			ID:          1,
 			Nickname:    "Спайси",
-			Age:         "13",
-			WeightKg:    "15",
+			Age:         13,
+			WeightKg:    15,
 			CheckInDate: "15.12.2025",
 			Shelter:     shelterData[1],
 			Сlinic:      Сlinic[0],
@@ -59,8 +59,8 @@ func CreateDogs(shelterData map[int]models.Shelter, Сlinic map[int]models.Clini
 		2: {
 			ID:          2,
 			Nickname:    "Кайман",
-			Age:         "643",
-			WeightKg:    "12",
+			Age:         643,
+			WeightKg:    12,
 			CheckInDate: "05.07.2025",
 			Shelter:     shelterData[0],
 			Сlinic:      Сlinic[1],

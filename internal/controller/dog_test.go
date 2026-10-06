@@ -10,6 +10,13 @@ import (
 	"petshelter/internal/models"
 )
 
+// Коды успешных ответов текущих хендлеров. Если поправите хендлеры
+// (Create -> 201, Replace -> 200), поменяйте только эти две строки.
+const (
+	createOKCode  = http.StatusOK
+	replaceOKCode = http.StatusCreated
+)
+
 type mockDogService struct {
 	listNicknamesFn func() []string
 	infoFn          func(int) (models.Dog, error)
@@ -120,10 +127,10 @@ func TestDogDeleteHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			called := false
+			called, gotID := false, 0
 			h := NewDog(mockDogService{
-				deleteFn: func(int) (string, error) {
-					called = true
+				deleteFn: func(id int) (string, error) {
+					called, gotID = true, id
 					return "Rex", tt.deleteErr
 				},
 			})
@@ -138,6 +145,9 @@ func TestDogDeleteHandler(t *testing.T) {
 				t.Errorf("service called = %v, want %v", called, tt.wantCalled)
 			}
 			if tt.wantCode == http.StatusOK {
+				if gotID != 5 {
+					t.Errorf("service got id %d, want 5", gotID)
+				}
 				var msg string
 				if err := json.NewDecoder(rec.Body).Decode(&msg); err != nil {
 					t.Fatalf("decode response: %v", err)
@@ -158,9 +168,10 @@ func TestDogCreateHandler(t *testing.T) {
 		wantCode   int
 		wantCalled bool
 	}{
-		{"ok", `{"Nickname":"Rex","Age":"3"}`, nil, http.StatusOK, true},
+		{"ok", `{"Nickname":"Rex","Age":3,"WeightKg":20}`, nil, createOKCode, true},
 		{"invalid json", `{broken`, nil, http.StatusBadRequest, false},
-		{"empty nickname", `{"Age":"3"}`, nil, http.StatusBadRequest, false},
+		{"age is a string", `{"Nickname":"Rex","Age":"3"}`, nil, http.StatusBadRequest, false},
+		{"empty nickname", `{"Age":3}`, nil, http.StatusBadRequest, false},
 		{"service error", `{"Nickname":"Rex"}`, errService, http.StatusBadRequest, true},
 	}
 
@@ -185,16 +196,16 @@ func TestDogCreateHandler(t *testing.T) {
 			if called != tt.wantCalled {
 				t.Errorf("service called = %v, want %v", called, tt.wantCalled)
 			}
-			if tt.wantCode == http.StatusOK {
-				if got.Nickname != "Rex" || got.Age != "3" {
-					t.Errorf("service got %+v, want Nickname=Rex Age=3", got)
+			if tt.wantCode == createOKCode {
+				if got.Nickname != "Rex" || got.Age != 3 || got.WeightKg != 20 {
+					t.Errorf("service got %+v, want Nickname=Rex Age=3 WeightKg=20", got)
 				}
 				var resp models.Dog
 				if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
 					t.Fatalf("decode response: %v", err)
 				}
-				if resp.ID != 1 || resp.Nickname != "Rex" {
-					t.Errorf("response = %+v, want ID=1 Nickname=Rex", resp)
+				if resp.ID != 1 || resp.Nickname != "Rex" || resp.Age != 3 {
+					t.Errorf("response = %+v, want ID=1 Nickname=Rex Age=3", resp)
 				}
 			}
 		})
@@ -210,10 +221,11 @@ func TestDogUpdateHandler(t *testing.T) {
 		wantCode   int
 		wantCalled bool
 	}{
-		{"ok", "5", `{"Nickname":"Max"}`, nil, http.StatusOK, true},
+		{"ok", "5", `{"Nickname":"Max","Age":4}`, nil, http.StatusOK, true},
 		{"invalid id", "abc", `{"Nickname":"Max"}`, nil, http.StatusBadRequest, false},
 		{"invalid json", "5", `{broken`, nil, http.StatusBadRequest, false},
-		{"empty nickname", "5", `{"Age":"4"}`, nil, http.StatusBadRequest, false},
+		{"age is a string", "5", `{"Nickname":"Max","Age":"4"}`, nil, http.StatusBadRequest, false},
+		{"empty nickname", "5", `{"Age":4}`, nil, http.StatusBadRequest, false},
 		{"service error", "5", `{"Nickname":"Max"}`, errService, http.StatusBadRequest, true},
 	}
 
@@ -237,8 +249,8 @@ func TestDogUpdateHandler(t *testing.T) {
 			if called != tt.wantCalled {
 				t.Errorf("service called = %v, want %v", called, tt.wantCalled)
 			}
-			if tt.wantCode == http.StatusOK && (gotID != 5 || got.Nickname != "Max") {
-				t.Errorf("service got id=%d dog=%+v, want id=5 Nickname=Max", gotID, got)
+			if tt.wantCode == http.StatusOK && (gotID != 5 || got.Nickname != "Max" || got.Age != 4) {
+				t.Errorf("service got id=%d dog=%+v, want id=5 Nickname=Max Age=4", gotID, got)
 			}
 		})
 	}
@@ -253,10 +265,11 @@ func TestDogReplaceHandler(t *testing.T) {
 		wantCode   int
 		wantCalled bool
 	}{
-		{"ok", "5", `{"Nickname":"Max"}`, nil, http.StatusCreated, true},
+		{"ok", "5", `{"Nickname":"Max","Age":4}`, nil, replaceOKCode, true},
 		{"invalid id", "abc", `{"Nickname":"Max"}`, nil, http.StatusBadRequest, false},
 		{"invalid json", "5", `{broken`, nil, http.StatusBadRequest, false},
-		{"empty nickname", "5", `{"Age":"4"}`, nil, http.StatusBadRequest, false},
+		{"age is a string", "5", `{"Nickname":"Max","Age":"4"}`, nil, http.StatusBadRequest, false},
+		{"empty nickname", "5", `{"Age":4}`, nil, http.StatusBadRequest, false},
 		{"service error", "5", `{"Nickname":"Max"}`, errService, http.StatusBadRequest, true},
 	}
 
@@ -280,8 +293,8 @@ func TestDogReplaceHandler(t *testing.T) {
 			if called != tt.wantCalled {
 				t.Errorf("service called = %v, want %v", called, tt.wantCalled)
 			}
-			if tt.wantCode == http.StatusCreated && (gotID != 5 || got.Nickname != "Max") {
-				t.Errorf("service got id=%d dog=%+v, want id=5 Nickname=Max", gotID, got)
+			if tt.wantCode == replaceOKCode && (gotID != 5 || got.Nickname != "Max" || got.Age != 4) {
+				t.Errorf("service got id=%d dog=%+v, want id=5 Nickname=Max Age=4", gotID, got)
 			}
 		})
 	}
