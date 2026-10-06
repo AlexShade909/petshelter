@@ -13,16 +13,16 @@ import (
 type mockDogService struct {
 	listNicknamesFn func() []string
 	infoFn          func(int) (models.Dog, error)
-	deleteFn        func(int) (error, string)
-	createFn        func(models.Dog) (error, models.Dog)
+	deleteFn        func(int) (string, error)
+	createFn        func(models.Dog) (models.Dog, error)
 	updateFn        func(int, models.Dog) (models.Dog, error)
 	replaceFn       func(int, models.Dog) (models.Dog, error)
 }
 
 func (m mockDogService) ListNicknames() []string                 { return m.listNicknamesFn() }
 func (m mockDogService) Info(id int) (models.Dog, error)         { return m.infoFn(id) }
-func (m mockDogService) Delete(id int) (error, string)           { return m.deleteFn(id) }
-func (m mockDogService) Create(d models.Dog) (error, models.Dog) { return m.createFn(d) }
+func (m mockDogService) Delete(id int) (string, error)           { return m.deleteFn(id) }
+func (m mockDogService) Create(d models.Dog) (models.Dog, error) { return m.createFn(d) }
 func (m mockDogService) Update(id int, d models.Dog) (models.Dog, error) {
 	return m.updateFn(id, d)
 }
@@ -122,9 +122,9 @@ func TestDogDeleteHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			called := false
 			h := NewDog(mockDogService{
-				deleteFn: func(int) (error, string) {
+				deleteFn: func(int) (string, error) {
 					called = true
-					return tt.deleteErr, "Rex"
+					return "Rex", tt.deleteErr
 				},
 			})
 			rec := httptest.NewRecorder()
@@ -169,10 +169,10 @@ func TestDogCreateHandler(t *testing.T) {
 			called := false
 			var got models.Dog
 			h := NewDog(mockDogService{
-				createFn: func(d models.Dog) (error, models.Dog) {
+				createFn: func(d models.Dog) (models.Dog, error) {
 					called, got = true, d
 					d.ID = 1 // сервис присваивает ID
-					return tt.createErr, d
+					return d, tt.createErr
 				},
 			})
 			rec := httptest.NewRecorder()

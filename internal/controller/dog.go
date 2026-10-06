@@ -10,8 +10,8 @@ import (
 type DogService interface {
 	ListNicknames() []string
 	Info(ID int) (models.Dog, error)
-	Delete(ID int) (error, string)
-	Create(dog models.Dog) (error, models.Dog)
+	Delete(ID int) (string, error)
+	Create(dog models.Dog) (models.Dog, error)
 	Update(ID int, dogUpdateFields models.Dog) (models.Dog, error)
 	Replace(ID int, dogReplaceFields models.Dog) (models.Dog, error)
 }
@@ -48,7 +48,7 @@ func (d dog) DeleteHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	err, nickname := d.dogService.Delete(dogID)
+	nickname, err := d.dogService.Delete(dogID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -66,7 +66,7 @@ func (d dog) CreateHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "empty nickname", http.StatusBadRequest)
 		return
 	}
-	err, dogCreated := d.dogService.Create(dogCreate)
+	dogCreated, err := d.dogService.Create(dogCreate)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
