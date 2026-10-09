@@ -39,7 +39,7 @@ func (r *DogRepository) GetByID(id int) (models.Dog, error) {
 	).Scan(
 		&d.ID, &d.Nickname, &d.Age, &d.WeightKg, &d.CheckInDate,
 		&d.Shelter.ID, &d.Shelter.Address, &d.Shelter.PhoneNumber, &d.Shelter.WorkingTime,
-		&d.Сlinic.ID, &d.Сlinic.Address, &d.Сlinic.PhoneNumber, &d.Сlinic.WorkingTime,
+		&d.Clinic.ID, &d.Clinic.Address, &d.Clinic.PhoneNumber, &d.Clinic.WorkingTime,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -93,7 +93,7 @@ func (r *DogRepository) Create(dog models.Dog) (models.Dog, error) {
 		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id`,
 		dog.Nickname, dog.Age, dog.WeightKg, dog.CheckInDate,
-		dog.Shelter.ID, dog.Сlinic.ID,
+		dog.Shelter.ID, dog.Clinic.ID,
 	).Scan(&id)
 	if err != nil {
 		return models.Dog{}, mapErr(err)
@@ -110,7 +110,7 @@ func (r *DogRepository) Replace(id int, dog models.Dog) (models.Dog, error) {
 		    shelter_id = $6, clinic_id = $7
 		WHERE id = $1`,
 		id, dog.Nickname, dog.Age, dog.WeightKg, dog.CheckInDate,
-		dog.Shelter.ID, dog.Сlinic.ID,
+		dog.Shelter.ID, dog.Clinic.ID,
 	)
 	if err != nil {
 		return models.Dog{}, mapErr(err)
@@ -134,7 +134,7 @@ func (r *DogRepository) Update(id int, patch models.Dog) (models.Dog, error) {
 		    clinic_id     = COALESCE(NULLIF($7::int, 0),   clinic_id)
 		WHERE id = $1`,
 		id, patch.Nickname, patch.Age, patch.WeightKg, patch.CheckInDate,
-		patch.Shelter.ID, patch.Сlinic.ID,
+		patch.Shelter.ID, patch.Clinic.ID,
 	)
 	if err != nil {
 		return models.Dog{}, mapErr(err)

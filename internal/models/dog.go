@@ -7,5 +7,5 @@ type Dog struct {
 	WeightKg    int
 	CheckInDate string
 	Shelter     Shelter
-	Сlinic      Clinic
+	Clinic      Clinic
 }

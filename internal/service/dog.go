@@ -46,14 +46,13 @@ func (s *DogService) Delete(ID int) error {
 	return err
 }
 
-//var nexDogID = len(dogsData)
-
-//func (d Dog) Create(dog models.Dog) (models.Dog, error) {
-//	dog.ID = nexDogID
-//	nexDogID++
-//	dogsData[dog.ID] = dog
-//	return dog, nil
-//}
+func (s *DogService) Create(dog models.Dog) (models.Dog, error) {
+	dogCreated, err := s.dogRepository.Create(dog)
+	if err != nil {
+		return models.Dog{}, errors.New("not created")
+	}
+	return dogCreated, nil
+}
 
 //func (d Dog) Update(ID int, patch models.Dog) (models.Dog, error) {
 //	dog, ok := dogsData[ID]

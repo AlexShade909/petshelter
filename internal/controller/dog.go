@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"net/http"
 	"petshelter/internal/models"
 	"strconv"
@@ -10,7 +11,7 @@ type DogService interface {
 	ListNicknames() ([]string, error)
 	GetByID(ID int) (models.Dog, error)
 	Delete(ID int) error
-	//Create(dog models.Dog) (models.Dog, error)
+	Create(dog models.Dog) (models.Dog, error)
 	//Update(ID int, dogUpdateFields models.Dog) (models.Dog, error)
 	//Replace(ID int, dogReplaceFields models.Dog) (models.Dog, error)
 }
@@ -64,24 +65,24 @@ func (d dog) DeleteHandler(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, "success")
 }
 
-//func (d dog) CreateHandler(w http.ResponseWriter, r *http.Request) {
-//	var dogCreate models.Dog
-//	if err := json.NewDecoder(r.Body).Decode(&dogCreate); err != nil {
-//		http.Error(w, "invalid request body", http.StatusBadRequest)
-//		return
-//	}
-//	if dogCreate.Nickname == "" {
-//		http.Error(w, "empty nickname", http.StatusBadRequest)
-//		return
-//	}
-//	dogCreated, err := d.dogService.Create(dogCreate)
-//	if err != nil {
-//		http.Error(w, err.Error(), http.StatusBadRequest)
-//		return
-//	}
-//	WriteJSON(w, http.StatusOK, dogCreated)
-//}
-//
+func (d dog) CreateHandler(w http.ResponseWriter, r *http.Request) {
+	var dogCreate models.Dog
+	if err := json.NewDecoder(r.Body).Decode(&dogCreate); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	if dogCreate.Nickname == "" {
+		http.Error(w, "empty nickname", http.StatusBadRequest)
+		return
+	}
+	dogCreated, err := d.dogService.Create(dogCreate)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	WriteJSON(w, http.StatusOK, dogCreated)
+}
+
 //func (d dog) UpdateHandler(w http.ResponseWriter, r *http.Request) {
 //	var dogUpdateFields models.Dog
 //
