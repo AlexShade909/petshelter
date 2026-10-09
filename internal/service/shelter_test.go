@@ -54,7 +54,7 @@ func TestShelter_Info(t *testing.T) {
 		}
 	})
 
-	// Этот тест падает на текущем коде: Info не проверяет наличие ключа
+	// Этот тест падает на текущем коде: GetByID не проверяет наличие ключа
 	// и возвращает пустой Shelter{} без ошибки.
 	t.Run("not found", func(t *testing.T) {
 		got, err := NewShelter().Info(99)

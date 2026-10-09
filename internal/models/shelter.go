@@ -1,6 +1,7 @@
 package models
 
 type Shelter struct {
+	ID          int
 	Address     string
 	PhoneNumber string
 	WorkingTime string
