@@ -50,6 +50,19 @@ func (r *DogRepository) GetByID(id int) (models.Dog, error) {
 	return d, nil
 }
 
+func (r *DogRepository) Delete(id int) error {
+	ctx := context.Background() // заглушка
+
+	tag, err := r.pool.Exec(ctx, `DELETE FROM dogs WHERE id = $1`, id)
+	if err != nil {
+		return mapErr(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return models.ErrNotFound
+	}
+	return nil
+}
+
 func (r *DogRepository) ListNicknames() ([]string, error) {
 	ctx := context.Background()
 	rows, err := r.pool.Query(ctx, `SELECT nickname FROM dogs ORDER BY nickname`)
@@ -70,19 +83,6 @@ func (r *DogRepository) ListNicknames() ([]string, error) {
 		return nil, err
 	}
 	return names, nil
-}
-
-func (r *DogRepository) Delete(id int) error {
-	ctx := context.Background() // заглушка
-
-	tag, err := r.pool.Exec(ctx, `DELETE FROM dogs WHERE id = $1`, id)
-	if err != nil {
-		return mapErr(err)
-	}
-	if tag.RowsAffected() == 0 {
-		return models.ErrNotFound
-	}
-	return nil
 }
 
 func (r *DogRepository) Create(dog models.Dog) (models.Dog, error) {

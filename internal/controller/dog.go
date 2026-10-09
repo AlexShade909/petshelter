@@ -12,7 +12,7 @@ type DogService interface {
 	GetByID(ID int) (models.Dog, error)
 	Delete(ID int) error
 	Create(dog models.Dog) (models.Dog, error)
-	//Update(ID int, dogUpdateFields models.Dog) (models.Dog, error)
+	Update(ID int, patch models.Dog) (models.Dog, error)
 	//Replace(ID int, dogReplaceFields models.Dog) (models.Dog, error)
 }
 
@@ -83,31 +83,31 @@ func (d dog) CreateHandler(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, dogCreated)
 }
 
-//func (d dog) UpdateHandler(w http.ResponseWriter, r *http.Request) {
-//	var dogUpdateFields models.Dog
-//
-//	dogID, err := strconv.Atoi(r.PathValue("dogID"))
-//	if err != nil {
-//		http.Error(w, err.Error(), http.StatusBadRequest)
-//		return
-//	}
-//
-//	if err := json.NewDecoder(r.Body).Decode(&dogUpdateFields); err != nil {
-//		http.Error(w, "invalid request body", http.StatusBadRequest)
-//		return
-//	}
-//	if dogUpdateFields.Nickname == "" {
-//		http.Error(w, "nickname is empty", http.StatusBadRequest)
-//		return
-//	}
-//	dogUpdated, err := d.dogService.Update(dogID, dogUpdateFields)
-//	if err != nil {
-//		http.Error(w, err.Error(), http.StatusBadRequest)
-//		return
-//	}
-//	WriteJSON(w, http.StatusOK, dogUpdated)
-//}
-//
+func (d dog) UpdateHandler(w http.ResponseWriter, r *http.Request) {
+	var patch models.Dog
+
+	dogID, err := strconv.Atoi(r.PathValue("dogID"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	if patch.Nickname == "" {
+		http.Error(w, "nickname is empty", http.StatusBadRequest)
+		return
+	}
+	dogUpdated, err := d.dogService.Update(dogID, patch)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	WriteJSON(w, http.StatusOK, dogUpdated)
+}
+
 //func (d dog) ReplaceHandler(w http.ResponseWriter, r *http.Request) {
 //	var dogReplaceFields models.Dog
 //	dogID, err := strconv.Atoi(r.PathValue("dogID"))

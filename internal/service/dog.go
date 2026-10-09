@@ -54,34 +54,13 @@ func (s *DogService) Create(dog models.Dog) (models.Dog, error) {
 	return dogCreated, nil
 }
 
-//func (d Dog) Update(ID int, patch models.Dog) (models.Dog, error) {
-//	dog, ok := dogsData[ID]
-//	if !ok {
-//		return models.Dog{}, errors.New("dog not found")
-//	}
-//
-//	if patch.Age != 0 {
-//		dog.Age = patch.Age
-//	}
-//	if patch.Nickname != "" {
-//		dog.Nickname = patch.Nickname
-//	}
-//	if patch.CheckInDate != "" {
-//		dog.CheckInDate = patch.CheckInDate
-//	}
-//	if patch.WeightKg != 0 {
-//		dog.WeightKg = patch.WeightKg
-//	}
-//	if patch.Сlinic.Address != "" {
-//		dog.Сlinic = patch.Сlinic
-//	}
-//
-//	if patch.Shelter.Address != "" {
-//		dog.Shelter = patch.Shelter
-//	}
-//	dogsData[ID] = dog
-//	return dogsData[ID], nil
-//}
+func (s *DogService) Update(ID int, patch models.Dog) (models.Dog, error) {
+	dogUpdate, err := s.dogRepository.Update(ID, patch)
+	if err != nil {
+		return models.Dog{}, errors.New("not updated")
+	}
+	return dogUpdate, err
+}
 
 //func (d Dog) Replace(ID int, patch models.Dog) (models.Dog, error) {
 //	_, ok := dogsData[ID]
